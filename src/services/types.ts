@@ -15,3 +15,11 @@ export interface JobStatusResponse {
   progress?: number;
   message?: string;
 }
+
+export interface GalleryEntry {
+  jobId: string;
+  plyUrl: string;
+  prompt: string;
+  completedAt: number;
+}
+

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -8,8 +9,26 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress";
+import { Spinner } from "@/components/ui/spinner";
+import { DemoGallery } from "@/components/demo-gallery";
 import { AlertCircle, Upload, Wand2, X } from "lucide-react";
 import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
+import { useGallery } from "@/src/hooks/useGallery";
+
+const SceneCanvas = dynamic(
+  () =>
+    import("@/components/scene-canvas").then((m) => ({
+      default: m.SceneCanvas,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className='absolute inset-0 flex items-center justify-center'>
+        <Spinner className='size-10' />
+      </div>
+    ),
+  },
+);
 
 const PRESET_PROMPTS = [
   "Neutral expression",
@@ -25,6 +44,22 @@ export default function WorkspacePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { state, startReconstruction, reset } = useFaceReconstruction();
+  const { entries, activeEntry, addEntry, selectEntry, clearGallery } =
+    useGallery();
+
+  // Capture completed jobs into the gallery automatically
+  useEffect(() => {
+    if (state.phase === "completed" && state.plyUrl && state.jobId) {
+      addEntry({
+        jobId: state.jobId,
+        plyUrl: state.plyUrl,
+        prompt,
+        completedAt: Date.now(),
+      });
+    }
+    // Only trigger when phase transitions to completed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase]);
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -50,6 +85,9 @@ export default function WorkspacePage() {
   const isActive = state.phase === "submitting" || state.phase === "polling";
   const canSubmit = !!imageFile && !isActive;
   const showProgress = state.phase !== "idle";
+
+  // The ply URL to hand off to the 3D viewer (active gallery pick wins over current job)
+  const activePlyUrl = activeEntry?.plyUrl ?? state.plyUrl;
 
   return (
     <div className='flex h-screen overflow-hidden bg-background'>
@@ -111,7 +149,7 @@ export default function WorkspacePage() {
             Prompt
           </span>
           <Textarea
-            placeholder='Enter prompt to modify your 3D face'
+            placeholder='Enter prompt...'
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
@@ -146,6 +184,13 @@ export default function WorkspacePage() {
           </section>
         )}
 
+        {/* Gallery */}
+        <DemoGallery
+          entries={entries}
+          activeEntry={activeEntry}
+          onSelect={selectEntry}
+        />
+
         {/* Trigger */}
         <Button
           className='mt-auto w-full'
@@ -162,7 +207,8 @@ export default function WorkspacePage() {
         id='canvas-viewport'
         className='relative flex flex-1 items-center justify-center overflow-hidden bg-muted/20'
       >
-        {state.phase === "idle" && (
+        {/* Idle — no active PLY and not processing */}
+        {state.phase === "idle" && !activePlyUrl && (
           <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
             <div className='size-16 rounded-2xl border border-dashed border-border flex items-center justify-center'>
               <Wand2 className='size-7 opacity-40' />
@@ -171,23 +217,20 @@ export default function WorkspacePage() {
           </div>
         )}
 
+        {/* Processing spinner overlay */}
         {isActive && (
-          <div className='flex flex-col items-center gap-3 text-muted-foreground select-none'>
+          <div className='absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/60 backdrop-blur-sm text-muted-foreground select-none'>
             <div className='size-10 animate-spin rounded-full border-2 border-border border-t-foreground' />
             <p className='text-sm'>{state.message}</p>
           </div>
         )}
 
-        {state.phase === "completed" && (
-          <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
-            <p className='text-sm'>
-              {/* R3F canvas injected here in Task 5 — ply_url: {state.plyUrl} */}
-              3D canvas will render here — R3F integration in Task 5
-            </p>
-          </div>
+        {/* R3F Canvas — always mounted once we have a plyUrl or gallery selection */}
+        {(activePlyUrl || state.phase === "completed") && (
+          <SceneCanvas plyUrl={activePlyUrl} />
         )}
 
-        {state.phase === "error" && (
+        {state.phase === "error" && !activePlyUrl && (
           <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
             <AlertCircle className='size-8 text-destructive opacity-60' />
             <p className='text-sm'>Reconstruction failed</p>
