@@ -1,17 +1,26 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { fetchJobStatus, POLL_INTERVAL_MS, submitJob } from "@/src/services/api";
+import {
+  fetchJobStatus,
+  POLL_INTERVAL_MS,
+  submitJob,
+} from "@/src/services/api";
 import type { JobStatus } from "@/src/services/types";
 
-export type PipelinePhase = "idle" | "submitting" | "polling" | "completed" | "error";
+export type PipelinePhase =
+  | "idle"
+  | "submitting"
+  | "polling"
+  | "completed"
+  | "error";
 
 export interface PipelineState {
   phase: PipelinePhase;
   jobId: string | null;
   progress: number;
   message: string;
-  plyUrl: string | null;
+  modelUrl: string | null;
   error: string | null;
 }
 
@@ -20,7 +29,7 @@ const INITIAL_STATE: PipelineState = {
   jobId: null,
   progress: 0,
   message: "",
-  plyUrl: null,
+  modelUrl: null,
   error: null,
 };
 
@@ -28,20 +37,28 @@ const INITIAL_STATE: PipelineState = {
 function deriveProgress(status: JobStatus, backendProgress?: number): number {
   if (backendProgress != null) return backendProgress;
   switch (status) {
-    case "QUEUED":      return 10;
-    case "PROCESSING":  return 55;
-    case "COMPLETED":   return 100;
-    case "FAILED":      return 0;
+    case "QUEUED":
+      return 10;
+    case "PROCESSING":
+      return 55;
+    case "COMPLETED":
+      return 100;
+    case "FAILED":
+      return 0;
   }
 }
 
 function deriveMessage(status: JobStatus, backendMessage?: string): string {
   if (backendMessage) return backendMessage;
   switch (status) {
-    case "QUEUED":      return "Queued...";
-    case "PROCESSING":  return "Running NeRF inference...";
-    case "COMPLETED":   return "Completed";
-    case "FAILED":      return "Failed";
+    case "QUEUED":
+      return "Queued...";
+    case "PROCESSING":
+      return "Running NeRF inference...";
+    case "COMPLETED":
+      return "Completed";
+    case "FAILED":
+      return "Failed";
   }
 }
 
@@ -59,7 +76,11 @@ export function useFaceReconstruction() {
   const startReconstruction = useCallback(
     async (imageFile: File, prompt: string) => {
       stopPolling();
-      setState({ ...INITIAL_STATE, phase: "submitting", message: "Uploading..." });
+      setState({
+        ...INITIAL_STATE,
+        phase: "submitting",
+        message: "Uploading...",
+      });
 
       let jobId: string;
       try {
@@ -94,10 +115,11 @@ export function useFaceReconstruction() {
 
           if (status.status === "COMPLETED") {
             stopPolling();
+            console.log("COMPLETED", status.glb_url ?? status.ply_url);
             setState((prev) => ({
               ...prev,
               phase: "completed",
-              plyUrl: status.ply_url ?? null,
+              modelUrl: status.glb_url ?? status.ply_url ?? null,
               progress: 100,
               message: "Completed",
             }));
@@ -129,3 +151,4 @@ export function useFaceReconstruction() {
 
   return { state, startReconstruction, reset };
 }
+

@@ -15,7 +15,7 @@ export async function submitJob(
   form.append("image", imageFile);
   form.append("prompt", prompt);
 
-  const res = await fetch(`${API_BASE_URL}/reconstruct`, {
+  const res = await fetch(`${API_BASE_URL}/generate`, {
     method: "POST",
     body: form,
   });
@@ -47,3 +47,4 @@ export async function fetchJobStatus(
 
 /** How often (ms) to poll for job status */
 export const POLL_INTERVAL_MS = 2_000;
+

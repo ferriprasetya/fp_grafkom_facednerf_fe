@@ -9,6 +9,7 @@ export interface JobStatusResponse {
   status: JobStatus;
   /** Present only when status === "COMPLETED" */
   ply_url?: string;
+  glb_url?: string;
   /** Present only when status === "FAILED" */
   error?: string;
   /** Backend-reported progress, 0–100 */
@@ -18,8 +19,9 @@ export interface JobStatusResponse {
 
 export interface GalleryEntry {
   jobId: string;
-  plyUrl: string;
+  modelUrl: string;
   prompt: string;
   completedAt: number;
 }
+
 

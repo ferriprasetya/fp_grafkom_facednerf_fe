@@ -5,13 +5,15 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { EffectComposer, Outline } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import type { Mesh, Object3D } from "three";
+import { Color, type Object3D } from "three";
 import { PLYMesh, type MaterialMode } from "@/components/ply-mesh";
+import { GLBMesh } from "@/components/glb-mesh";
 import { CanvasErrorBoundary } from "@/components/canvas-error-boundary";
 import { MousePointLight } from "@/components/mouse-point-light";
+import { getModelFormat } from "@/lib/model-url";
 
 interface SceneCanvasProps {
-  plyUrl: string | null;
+  modelUrl: string | null;
   wireframe?: boolean;
   materialMode?: MaterialMode;
   outline?: boolean;
@@ -27,7 +29,7 @@ function MeshLoadingFallback() {
 }
 
 export function SceneCanvas({
-  plyUrl,
+  modelUrl,
   wireframe = false,
   materialMode = "vertex",
   outline = false,
@@ -36,18 +38,20 @@ export function SceneCanvas({
    * meshRef lets <Outline> select exactly this mesh for edge detection
    * without relying on layers or scene-wide selection lists.
    */
-  const meshRef = useRef<Mesh>(null);
+  const meshRef = useRef<Object3D>(null);
+
+  const format = getModelFormat(modelUrl);
 
   return (
     <div
       className='absolute inset-0'
-      id='ply-viewer-mount'
-      data-ply-url={plyUrl ?? ""}
+      id='model-viewer-mount'
+      data-model-url={modelUrl ?? ""}
     >
       <CanvasErrorBoundary>
         <Canvas
-          frameloop='demand'
-          gl={{ antialias: true, alpha: false }}
+          frameloop='always'
+          gl={{ antialias: true, alpha: true }}
           shadows
         >
           <PerspectiveCamera
@@ -58,9 +62,16 @@ export function SceneCanvas({
             far={100}
           />
 
-          {/* Static fill light — kept low so mouse light reads clearly */}
-          <ambientLight intensity={0.3} />
-          <directionalLight position={[5, 8, 5]} intensity={0.5} castShadow />
+          {/*
+           * scene.background via attach so it renders behind the mesh but
+           * stays independent of the CSS layer. Neutral dark-blue-grey gives
+           * enough contrast for both light and dark vertex-color meshes.
+           */}
+          <color attach='background' args={[new Color("#1c1f2e")]} />
+
+          {/* Boosted ambient so PBR meshStandardMaterial vertex colors read correctly */}
+          <ambientLight intensity={1.2} />
+          <directionalLight position={[5, 8, 5]} intensity={0.8} castShadow />
 
           {/* Dynamic point light that follows the cursor */}
           <MousePointLight />
@@ -74,13 +85,21 @@ export function SceneCanvas({
           />
 
           <Suspense fallback={<MeshLoadingFallback />}>
-            {plyUrl ? (
-              <PLYMesh
-                url={plyUrl}
-                wireframe={wireframe}
-                materialMode={materialMode}
-                meshRef={meshRef}
-              />
+            {modelUrl ? (
+              format === "glb" ? (
+                <GLBMesh
+                  url={modelUrl}
+                  wireframe={wireframe}
+                  meshRef={meshRef}
+                />
+              ) : (
+                <PLYMesh
+                  url={modelUrl}
+                  wireframe={wireframe}
+                  materialMode={materialMode}
+                  meshRef={meshRef}
+                />
+              )
             ) : (
               <MeshLoadingFallback />
             )}
@@ -91,7 +110,7 @@ export function SceneCanvas({
            * is loaded. Keeping it conditional avoids the extra render pass
            * cost when the feature is off.
            */}
-          {outline && plyUrl && (
+          {outline && modelUrl && (
             <EffectComposer autoClear={false}>
               <Outline
                 selection={meshRef as React.RefObject<Object3D>}
@@ -111,7 +130,7 @@ export function SceneCanvas({
         </Canvas>
       </CanvasErrorBoundary>
 
-      {!plyUrl && (
+      {!modelUrl && (
         <div className='pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2'>
           <span className='rounded-full bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm'>
             Move cursor to relight — drag to orbit
@@ -121,4 +140,5 @@ export function SceneCanvas({
     </div>
   );
 }
+
 

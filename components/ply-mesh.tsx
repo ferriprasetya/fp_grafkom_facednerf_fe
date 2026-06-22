@@ -3,7 +3,7 @@
 import { useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
-import type { Mesh } from "three";
+import { Vector3, type Mesh, type Object3D } from "three";
 
 export type MaterialMode = "vertex" | "skin";
 
@@ -12,7 +12,7 @@ interface PLYMeshProps {
   wireframe?: boolean;
   materialMode?: MaterialMode;
   /** Forwarded ref so parent effects (e.g. Outline) can target this mesh. */
-  meshRef?: RefObject<Mesh | null>;
+  meshRef?: RefObject<Object3D | null>;
 }
 
 /**
@@ -34,6 +34,13 @@ export function PLYMesh({
 
   const geometry = useMemo(() => {
     rawGeometry.computeVertexNormals();
+    // Center so the bounding box midpoint sits at the world origin
+    rawGeometry.center();
+    rawGeometry.computeBoundingBox();
+    const size = rawGeometry.boundingBox!.getSize(new Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    // Normalize to ~2 world units so it always fits the default camera
+    if (maxDim > 0) rawGeometry.scale(2 / maxDim, 2 / maxDim, 2 / maxDim);
     return rawGeometry;
   }, [rawGeometry]);
 

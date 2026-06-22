@@ -16,6 +16,7 @@ import { AlertCircle, Upload, Wand2, X } from "lucide-react";
 import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
 import { useGallery } from "@/src/hooks/useGallery";
 import type { MaterialMode } from "@/components/ply-mesh";
+import { getModelFormat } from "@/lib/model-url";
 
 const SceneCanvas = dynamic(
   () =>
@@ -54,10 +55,10 @@ export default function WorkspacePage() {
 
   // Capture completed jobs into the gallery automatically
   useEffect(() => {
-    if (state.phase === "completed" && state.plyUrl && state.jobId) {
+    if (state.phase === "completed" && state.modelUrl && state.jobId) {
       addEntry({
         jobId: state.jobId,
-        plyUrl: state.plyUrl,
+        modelUrl: state.modelUrl,
         prompt,
         completedAt: Date.now(),
       });
@@ -91,8 +92,10 @@ export default function WorkspacePage() {
   const canSubmit = !!imageFile && !isActive;
   const showProgress = state.phase !== "idle";
 
-  // The ply URL to hand off to the 3D viewer (active gallery pick wins over current job)
-  const activePlyUrl = activeEntry?.plyUrl ?? state.plyUrl;
+  // The model URL to hand off to the 3D viewer (active gallery pick wins over current job)
+  const activeModelUrl = activeEntry?.modelUrl ?? state.modelUrl;
+  const isGlb = getModelFormat(activeModelUrl) === "glb";
+
 
   return (
     <div className='flex h-screen overflow-hidden bg-background'>
@@ -197,7 +200,7 @@ export default function WorkspacePage() {
         />
 
         {/* Viewport Controls */}
-        {activePlyUrl && (
+        {activeModelUrl && (
           <section className='flex flex-col gap-3'>
             <span className='text-xs font-medium text-muted-foreground uppercase tracking-widest'>
               Viewport
@@ -221,25 +224,27 @@ export default function WorkspacePage() {
               />
             </div>
 
-            <div className='flex flex-col gap-1.5'>
-              <span className='text-xs text-muted-foreground'>Material</span>
-              <div className='grid grid-cols-2 gap-1'>
-                <Button
-                  variant={materialMode === "vertex" ? "default" : "outline"}
-                  size='sm'
-                  onClick={() => setMaterialMode("vertex")}
-                >
-                  Vertex Colors
-                </Button>
-                <Button
-                  variant={materialMode === "skin" ? "default" : "outline"}
-                  size='sm'
-                  onClick={() => setMaterialMode("skin")}
-                >
-                  Skin Tone
-                </Button>
+            {!isGlb && (
+              <div className='flex flex-col gap-1.5'>
+                <span className='text-xs text-muted-foreground'>Material</span>
+                <div className='grid grid-cols-2 gap-1'>
+                  <Button
+                    variant={materialMode === "vertex" ? "default" : "outline"}
+                    size='sm'
+                    onClick={() => setMaterialMode("vertex")}
+                  >
+                    Vertex Colors
+                  </Button>
+                  <Button
+                    variant={materialMode === "skin" ? "default" : "outline"}
+                    size='sm'
+                    onClick={() => setMaterialMode("skin")}
+                  >
+                    Skin Tone
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         )}
 
@@ -259,8 +264,8 @@ export default function WorkspacePage() {
         id='canvas-viewport'
         className='relative flex flex-1 items-center justify-center overflow-hidden bg-muted/20'
       >
-        {/* Idle — no active PLY and not processing */}
-        {state.phase === "idle" && !activePlyUrl && (
+        {/* Idle — no active model and not processing */}
+        {state.phase === "idle" && !activeModelUrl && (
           <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
             <div className='size-16 rounded-2xl border border-dashed border-border flex items-center justify-center'>
               <Wand2 className='size-7 opacity-40' />
@@ -277,17 +282,17 @@ export default function WorkspacePage() {
           </div>
         )}
 
-        {/* R3F Canvas — always mounted once we have a plyUrl or gallery selection */}
-        {(activePlyUrl || state.phase === "completed") && (
+        {/* R3F Canvas — always mounted once we have a modelUrl or gallery selection */}
+        {(activeModelUrl || state.phase === "completed") && (
           <SceneCanvas
-            plyUrl={activePlyUrl}
+            modelUrl={activeModelUrl}
             wireframe={wireframe}
             materialMode={materialMode}
             outline={outline}
           />
         )}
 
-        {state.phase === "error" && !activePlyUrl && (
+        {state.phase === "error" && !activeModelUrl && (
           <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
             <AlertCircle className='size-8 text-destructive opacity-60' />
             <p className='text-sm'>Reconstruction failed</p>
