@@ -1,64 +1,201 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/components/ui/progress";
+import { AlertCircle, Upload, Wand2, X } from "lucide-react";
+import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
+
+const PRESET_PROMPTS = [
+  "Neutral expression",
+  "Smiling face",
+  "Eyes closed",
+  "Side profile",
+];
+
+export default function WorkspacePage() {
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { state, startReconstruction, reset } = useFaceReconstruction();
+
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function clearImage() {
+    setImagePreview(null);
+    setImageFile(null);
+    reset();
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleSubmit() {
+    if (!imageFile) return;
+    startReconstruction(imageFile, prompt);
+  }
+
+  const isActive = state.phase === "submitting" || state.phase === "polling";
+  const canSubmit = !!imageFile && !isActive;
+  const showProgress = state.phase !== "idle";
+
   return (
-    <div className='flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black'>
-      <main className='flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start'>
-        <Image
-          className='dark:invert'
-          src='/next.svg'
-          alt='Next.js logo'
-          width={100}
-          height={20}
-          priority
-        />
-        <div className='flex flex-col items-center gap-6 text-center sm:items-start sm:text-left'>
-          <h1 className='max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50'>
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className='max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400'>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href='https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-              className='font-medium text-zinc-950 dark:text-zinc-50'
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href='https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-              className='font-medium text-zinc-950 dark:text-zinc-50'
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className='flex h-screen overflow-hidden bg-background'>
+      {/* ── Left: Control Panel ──────────────────────────────────────── */}
+      <aside className='flex w-80 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border p-6'>
+        <div>
+          <h1 className='text-base font-semibold tracking-tight'>FaceDNeRF</h1>
+          <p className='text-xs text-muted-foreground'>
+            3D Face Reconstruction
           </p>
         </div>
-        <div className='flex flex-col gap-4 text-base font-medium sm:flex-row'>
-          <a
-            className='flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]'
-            href='https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            <Image
-              className='dark:invert'
-              src='/vercel.svg'
-              alt='Vercel logomark'
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className='flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]'
-            href='https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app'
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            Documentation
-          </a>
-        </div>
+
+        {/* Image Upload */}
+        <section className='flex flex-col gap-2'>
+          <span className='text-xs font-medium text-muted-foreground uppercase tracking-widest'>
+            Face Image
+          </span>
+
+          {imagePreview ? (
+            <div className='relative overflow-hidden rounded-lg border border-border'>
+              <img
+                src={imagePreview}
+                alt='Uploaded face'
+                className='h-40 w-full object-cover'
+              />
+              <button
+                onClick={clearImage}
+                className='absolute right-2 top-2 rounded-md bg-background/80 p-1 backdrop-blur-sm transition-opacity hover:opacity-80'
+                aria-label='Remove image'
+              >
+                <X className='size-3.5' />
+              </button>
+              <span className='absolute bottom-2 left-2 max-w-[calc(100%-2rem)] truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-xs backdrop-blur-sm'>
+                {imageFile?.name}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className='flex h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60'
+            >
+              <Upload className='size-5' />
+              <span className='text-xs'>Click to upload</span>
+            </button>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type='file'
+            accept='image/*'
+            className='hidden'
+            onChange={handleImageUpload}
+          />
+        </section>
+
+        {/* Prompt */}
+        <section className='flex flex-col gap-2'>
+          <span className='text-xs font-medium text-muted-foreground uppercase tracking-widest'>
+            Prompt
+          </span>
+          <Textarea
+            placeholder='Enter prompt to modify your 3D face'
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <div className='flex flex-wrap gap-1.5'>
+            {PRESET_PROMPTS.map((preset) => (
+              <Button
+                key={preset}
+                variant='outline'
+                size='xs'
+                onClick={() => setPrompt(preset)}
+              >
+                {preset}
+              </Button>
+            ))}
+          </div>
+        </section>
+
+        {/* Progress */}
+        {showProgress && (
+          <section className='flex flex-col gap-2'>
+            {state.phase === "error" ? (
+              <div className='flex items-start gap-2 text-destructive'>
+                <AlertCircle className='mt-px size-4 shrink-0' />
+                <p className='text-xs leading-relaxed'>{state.error}</p>
+              </div>
+            ) : (
+              <Progress value={state.progress}>
+                <ProgressLabel>{state.message}</ProgressLabel>
+                <ProgressValue />
+              </Progress>
+            )}
+          </section>
+        )}
+
+        {/* Trigger */}
+        <Button
+          className='mt-auto w-full'
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+        >
+          <Wand2 />
+          Reconstruct 3D
+        </Button>
+      </aside>
+
+      {/* ── Right: 3D Canvas Viewport ────────────────────────────────── */}
+      <main
+        id='canvas-viewport'
+        className='relative flex flex-1 items-center justify-center overflow-hidden bg-muted/20'
+      >
+        {state.phase === "idle" && (
+          <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
+            <div className='size-16 rounded-2xl border border-dashed border-border flex items-center justify-center'>
+              <Wand2 className='size-7 opacity-40' />
+            </div>
+            <p className='text-sm'>Upload a face image to begin</p>
+          </div>
+        )}
+
+        {isActive && (
+          <div className='flex flex-col items-center gap-3 text-muted-foreground select-none'>
+            <div className='size-10 animate-spin rounded-full border-2 border-border border-t-foreground' />
+            <p className='text-sm'>{state.message}</p>
+          </div>
+        )}
+
+        {state.phase === "completed" && (
+          <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
+            <p className='text-sm'>
+              {/* R3F canvas injected here in Task 5 — ply_url: {state.plyUrl} */}
+              3D canvas will render here — R3F integration in Task 5
+            </p>
+          </div>
+        )}
+
+        {state.phase === "error" && (
+          <div className='flex flex-col items-center gap-2 text-muted-foreground select-none'>
+            <AlertCircle className='size-8 text-destructive opacity-60' />
+            <p className='text-sm'>Reconstruction failed</p>
+            <Button variant='outline' size='sm' onClick={reset}>
+              Try again
+            </Button>
+          </div>
+        )}
       </main>
     </div>
   );
