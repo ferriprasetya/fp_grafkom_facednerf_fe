@@ -1,14 +1,20 @@
 "use client";
 
-import { Suspense } from "react";
+import React, { Suspense, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
-import { PLYMesh } from "@/components/ply-mesh";
+import { EffectComposer, Outline } from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
+import type { Mesh, Object3D } from "three";
+import { PLYMesh, type MaterialMode } from "@/components/ply-mesh";
 import { CanvasErrorBoundary } from "@/components/canvas-error-boundary";
 import { MousePointLight } from "@/components/mouse-point-light";
 
 interface SceneCanvasProps {
   plyUrl: string | null;
+  wireframe?: boolean;
+  materialMode?: MaterialMode;
+  outline?: boolean;
 }
 
 function MeshLoadingFallback() {
@@ -20,7 +26,18 @@ function MeshLoadingFallback() {
   );
 }
 
-export function SceneCanvas({ plyUrl }: SceneCanvasProps) {
+export function SceneCanvas({
+  plyUrl,
+  wireframe = false,
+  materialMode = "vertex",
+  outline = false,
+}: SceneCanvasProps) {
+  /*
+   * meshRef lets <Outline> select exactly this mesh for edge detection
+   * without relying on layers or scene-wide selection lists.
+   */
+  const meshRef = useRef<Mesh>(null);
+
   return (
     <div
       className='absolute inset-0'
@@ -57,8 +74,40 @@ export function SceneCanvas({ plyUrl }: SceneCanvasProps) {
           />
 
           <Suspense fallback={<MeshLoadingFallback />}>
-            {plyUrl ? <PLYMesh url={plyUrl} /> : <MeshLoadingFallback />}
+            {plyUrl ? (
+              <PLYMesh
+                url={plyUrl}
+                wireframe={wireframe}
+                materialMode={materialMode}
+                meshRef={meshRef}
+              />
+            ) : (
+              <MeshLoadingFallback />
+            )}
           </Suspense>
+
+          {/*
+           * EffectComposer only mounts when outline is enabled AND a mesh
+           * is loaded. Keeping it conditional avoids the extra render pass
+           * cost when the feature is off.
+           */}
+          {outline && plyUrl && (
+            <EffectComposer autoClear={false}>
+              <Outline
+                selection={meshRef as React.RefObject<Object3D>}
+                blendFunction={BlendFunction.ALPHA}
+                edgeStrength={4}
+                visibleEdgeColor={0xffffff}
+                hiddenEdgeColor={0x888888}
+                /*
+                 * xRay=false means hidden edges are drawn differently
+                 * (dimmed) rather than completely invisible — gives a
+                 * clean edge-detection look without occlusion clipping.
+                 */
+                xRay={false}
+              />
+            </EffectComposer>
+          )}
         </Canvas>
       </CanvasErrorBoundary>
 

@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
+import type { Mesh } from "three";
+
+export type MaterialMode = "vertex" | "skin";
 
 interface PLYMeshProps {
   url: string;
+  wireframe?: boolean;
+  materialMode?: MaterialMode;
+  /** Forwarded ref so parent effects (e.g. Outline) can target this mesh. */
+  meshRef?: RefObject<Mesh | null>;
 }
 
 /**
@@ -17,7 +24,12 @@ interface PLYMeshProps {
  * computeVertexNormals() is essential: FaceDNeRF outputs often lack
  * pre-computed normals, causing flat / broken shading without it.
  */
-export function PLYMesh({ url }: PLYMeshProps) {
+export function PLYMesh({
+  url,
+  wireframe = false,
+  materialMode = "vertex",
+  meshRef,
+}: PLYMeshProps) {
   const rawGeometry = useLoader(PLYLoader, url);
 
   const geometry = useMemo(() => {
@@ -26,12 +38,25 @@ export function PLYMesh({ url }: PLYMeshProps) {
   }, [rawGeometry]);
 
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      {/*
-       * vertexColors must be true — FaceDNeRF bakes RGB directly into
-       * vertex color attributes, NOT into texture maps.
-       */}
-      <meshStandardMaterial vertexColors />
+    <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+      {materialMode === "skin" ? (
+        /*
+         * Classic Phong shading with a neutral skin base color.
+         * Demonstrates shading without vertex color data.
+         */
+        <meshPhongMaterial
+          color='#e8b89a'
+          specular='#ffffff'
+          shininess={30}
+          wireframe={wireframe}
+        />
+      ) : (
+        /*
+         * vertexColors must be true — FaceDNeRF bakes RGB directly into
+         * vertex color attributes, NOT into texture maps.
+         */
+        <meshStandardMaterial vertexColors wireframe={wireframe} />
+      )}
     </mesh>
   );
 }

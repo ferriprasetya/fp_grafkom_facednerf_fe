@@ -9,11 +9,13 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { DemoGallery } from "@/components/demo-gallery";
 import { AlertCircle, Upload, Wand2, X } from "lucide-react";
 import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
 import { useGallery } from "@/src/hooks/useGallery";
+import type { MaterialMode } from "@/components/ply-mesh";
 
 const SceneCanvas = dynamic(
   () =>
@@ -42,6 +44,9 @@ export default function WorkspacePage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [wireframe, setWireframe] = useState(false);
+  const [materialMode, setMaterialMode] = useState<MaterialMode>("vertex");
+  const [outline, setOutline] = useState(false);
 
   const { state, startReconstruction, reset } = useFaceReconstruction();
   const { entries, activeEntry, addEntry, selectEntry, clearGallery } =
@@ -191,6 +196,53 @@ export default function WorkspacePage() {
           onSelect={selectEntry}
         />
 
+        {/* Viewport Controls */}
+        {activePlyUrl && (
+          <section className='flex flex-col gap-3'>
+            <span className='text-xs font-medium text-muted-foreground uppercase tracking-widest'>
+              Viewport
+            </span>
+
+            <div className='flex items-center justify-between'>
+              <span className='text-xs text-muted-foreground'>Wireframe</span>
+              <Switch
+                id='wireframe-toggle'
+                checked={wireframe}
+                onCheckedChange={setWireframe}
+              />
+            </div>
+
+            <div className='flex items-center justify-between'>
+              <span className='text-xs text-muted-foreground'>Outline</span>
+              <Switch
+                id='outline-toggle'
+                checked={outline}
+                onCheckedChange={setOutline}
+              />
+            </div>
+
+            <div className='flex flex-col gap-1.5'>
+              <span className='text-xs text-muted-foreground'>Material</span>
+              <div className='grid grid-cols-2 gap-1'>
+                <Button
+                  variant={materialMode === "vertex" ? "default" : "outline"}
+                  size='sm'
+                  onClick={() => setMaterialMode("vertex")}
+                >
+                  Vertex Colors
+                </Button>
+                <Button
+                  variant={materialMode === "skin" ? "default" : "outline"}
+                  size='sm'
+                  onClick={() => setMaterialMode("skin")}
+                >
+                  Skin Tone
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Trigger */}
         <Button
           className='mt-auto w-full'
@@ -227,7 +279,12 @@ export default function WorkspacePage() {
 
         {/* R3F Canvas — always mounted once we have a plyUrl or gallery selection */}
         {(activePlyUrl || state.phase === "completed") && (
-          <SceneCanvas plyUrl={activePlyUrl} />
+          <SceneCanvas
+            plyUrl={activePlyUrl}
+            wireframe={wireframe}
+            materialMode={materialMode}
+            outline={outline}
+          />
         )}
 
         {state.phase === "error" && !activePlyUrl && (

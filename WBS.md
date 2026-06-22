@@ -23,5 +23,8 @@
 - **Task 7: Interaktivitas Real-time Relighting**
   Tambahkan komponen pencahayaan dinamis `PointLight` ke dalam scene R3F. Gunakan hook `useFrame` untuk menangkap koordinat kursor mouse yang telah dinormalisasi di dalam viewport, lalu petakan posisi koordinat lampu mengikuti gerakan mouse secara instan untuk efek shading wajah yang hidup.
 
-- **Task 8: State Management, Polling Simulation & Env Switch**
-  Kelola sinkronisasi state UI (Form Input -> Progress Bar -> 3D Render View). Sediakan skrip simulasi mocking status menggunakan `setTimeout` untuk kebutuhan paralel development, dan konfigurasi variabel `process.env.NEXT_PUBLIC_API_URL` agar transisi ke FastAPI asli hanya memerlukan perubahan satu baris environment variable.
+- **Task 8: Implementasi Visual Toggles (Wireframe & Skin Material)**
+  Tambahkan komponen _switch_ atau _dropdown_ pada panel UI kontrol. Hubungkan _state_ tersebut ke komponen R3F untuk memicu properti `wireframe={true}` pada material. Selain itu, buat logika _conditional rendering_ untuk menukar `MeshStandardMaterial` (vertex colors) dengan `MeshPhongMaterial` berwarna dasar kulit untuk mendemonstrasikan shading klasik.
+
+- **Task 9: Integrasi Post-Processing (Highlight Outline)**
+  Instalasi pustaka `@react-three/postprocessing`. Implementasikan `<EffectComposer>` sebagai pembungkus _scene_ utama di dalam kanvas, lalu tambahkan efek `<Outline>` yang menargetkan mesh model wajah untuk menghasilkan efek _edge detection_ yang rapi tanpa memberatkan performa rendering dasar.
