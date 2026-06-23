@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Progress,
@@ -205,6 +205,14 @@ export default function WorkspacePage() {
             <span className='text-xs font-medium text-muted-foreground uppercase tracking-widest'>
               Viewport
             </span>
+
+            <a
+              href={activeModelUrl}
+              download
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Download model
+            </a>
 
             <div className='flex items-center justify-between'>
               <span className='text-xs text-muted-foreground'>Wireframe</span>
