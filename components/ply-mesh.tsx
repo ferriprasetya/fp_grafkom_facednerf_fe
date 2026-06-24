@@ -4,6 +4,7 @@ import { useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
 import { Vector3, type Mesh, type Object3D } from "three";
+import { simplifyGeometry } from "@/lib/utils";
 
 export type MaterialMode = "vertex" | "skin";
 
@@ -41,7 +42,19 @@ export function PLYMesh({
     const maxDim = Math.max(size.x, size.y, size.z);
     // Normalize to ~2 world units so it always fits the default camera
     if (maxDim > 0) rawGeometry.scale(2 / maxDim, 2 / maxDim, 2 / maxDim);
-    return rawGeometry;
+
+    const TARGET_VERTEX = 15000;
+
+    // Debugging log for before vs after mesh simplification
+    const originalCount = rawGeometry.attributes?.position?.count || 0;
+    const simplifiedGeom = simplifyGeometry(rawGeometry, TARGET_VERTEX);
+    const simplifiedCount = simplifiedGeom.attributes?.position?.count || 0;
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[PLY Debug] Vertex ORiginal: ${originalCount} -> Simplification : ${simplifiedCount}`);
+    }
+
+    return simplifiedGeom;
   }, [rawGeometry]);
 
   return (

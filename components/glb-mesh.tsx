@@ -3,6 +3,7 @@
 import { useMemo, type RefObject } from "react";
 import { useGLTF } from "@react-three/drei";
 import { Box3, Vector3, type Mesh, type Object3D } from "three";
+import { simplifyGeometry } from "@/lib/utils";
 
 interface GLBMeshProps {
   url: string;
@@ -15,10 +16,21 @@ export function GLBMesh({ url, wireframe = false, meshRef }: GLBMeshProps) {
 
   const clonedScene = useMemo(() => {
     const clone = scene.clone(true);
+    const TARGET_VERTEX = 15000;
 
     clone.traverse((child) => {
       if ((child as Mesh).isMesh) {
         const mesh = child as Mesh;
+
+        // Debug log 
+        const originalCount = mesh.geometry?.attributes?.position?.count || 0;
+        mesh.geometry = simplifyGeometry(mesh.geometry, TARGET_VERTEX);
+        const simplifiedCount = mesh.geometry?.attributes?.position?.count || 0;
+
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[GLB Debug - ${mesh.name || 'part'}] Vertex Original: ${originalCount} -> Simplification: ${simplifiedCount}`);
+        }
+
         if (Array.isArray(mesh.material)) {
           mesh.material = mesh.material.map((mat) => mat.clone());
         } else if (mesh.material) {
