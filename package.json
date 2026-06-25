@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "optimize:meshes": "node scripts/optimize-comparison-meshes.mjs"
+    "start": "next start"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

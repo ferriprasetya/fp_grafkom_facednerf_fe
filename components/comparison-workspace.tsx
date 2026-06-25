@@ -10,7 +10,6 @@ import { COMPARISON_SUBJECTS } from "@/lib/comparison-data";
 
 export function ComparisonWorkspace() {
   const [subjectId, setSubjectId] = useState(COMPARISON_SUBJECTS[0].id);
-  const [method, setMethod] = useState<"facednerf" | "triposr">("facednerf");
   const [wireframe, setWireframe] = useState(false);
   const [materialMode, setMaterialMode] =
     useState<MaterialMode>("vertex");
@@ -18,20 +17,6 @@ export function ComparisonWorkspace() {
   const subject =
     COMPARISON_SUBJECTS.find((entry) => entry.id === subjectId) ??
     COMPARISON_SUBJECTS[0];
-  const activeModel =
-    method === "facednerf"
-      ? {
-          title: "FaceDNeRF",
-          subtitle: "Face-specific reconstruction",
-          modelUrl: subject.facednerfModel,
-          originalUrl: subject.facednerfOriginal,
-        }
-      : {
-          title: "TripoSR",
-          subtitle: "Feed-forward reconstruction",
-          modelUrl: subject.triposrModel,
-          originalUrl: subject.triposrOriginal,
-        };
 
   return (
     <div className='grid min-h-[calc(100vh-65px)] lg:grid-cols-[280px_1fr]'>
@@ -70,28 +55,6 @@ export function ComparisonWorkspace() {
           </div>
         </section>
 
-        <section className='flex flex-col gap-2'>
-          <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>
-            Method
-          </p>
-          <div className='grid grid-cols-2 gap-2'>
-            <Button
-              variant={method === "facednerf" ? "default" : "outline"}
-              size='sm'
-              onClick={() => setMethod("facednerf")}
-            >
-              FaceDNeRF
-            </Button>
-            <Button
-              variant={method === "triposr" ? "default" : "outline"}
-              size='sm'
-              onClick={() => setMethod("triposr")}
-            >
-              TripoSR
-            </Button>
-          </div>
-        </section>
-
         <section className='flex flex-col gap-3'>
           <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>
             View
@@ -123,13 +86,22 @@ export function ComparisonWorkspace() {
         </section>
       </aside>
 
-      <div className='p-4'>
+      <div className='grid gap-4 p-4 lg:grid-cols-2'>
         <ModelPanel
-          key={`${subject.id}-${method}`}
-          title={activeModel.title}
-          subtitle={activeModel.subtitle}
-          modelUrl={activeModel.modelUrl}
-          originalUrl={activeModel.originalUrl}
+          key={`${subject.id}-facednerf`}
+          title='FaceDNeRF'
+          subtitle='Face-specific reconstruction'
+          modelUrl={subject.facednerfModel}
+          downloadUrl={subject.facednerfModel}
+          wireframe={wireframe}
+          materialMode={materialMode}
+        />
+        <ModelPanel
+          key={`${subject.id}-triposr`}
+          title='TripoSR'
+          subtitle='Feed-forward reconstruction'
+          modelUrl={subject.triposrModel}
+          downloadUrl={subject.triposrModel}
           wireframe={wireframe}
           materialMode={materialMode}
         />

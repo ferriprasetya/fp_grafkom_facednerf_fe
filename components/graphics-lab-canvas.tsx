@@ -48,7 +48,6 @@ export interface GraphicsLabHandle {
   reset: () => void;
   smoothGlobal: () => void;
   addNoise: () => void;
-  reduceMesh: () => void;
   recomputeNormals: () => void;
   exportPly: () => void;
 }
@@ -240,25 +239,6 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
           }
           position.needsUpdate = true;
           finishGeometryUpdate();
-        },
-        reduceMesh() {
-          pushHistory();
-          const geometry = geometryRef.current;
-          if (originalColorsRef.current) {
-            geometry.setAttribute("color", originalColorsRef.current.clone());
-          }
-          const currentCount = geometry.getAttribute("position").count;
-          void import(
-            "three/examples/jsm/modifiers/SimplifyModifier.js"
-          ).then(({ SimplifyModifier }) => {
-            const modifier = new SimplifyModifier();
-            const reduced = modifier.modify(
-              geometry,
-              Math.floor(currentCount * 0.2),
-            );
-            reduced.computeVertexNormals();
-            replaceGeometry(reduced);
-          });
         },
         recomputeNormals() {
           geometryRef.current.computeVertexNormals();

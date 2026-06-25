@@ -247,13 +247,6 @@ export function GraphicsLabWorkspace() {
             <Button
               size='sm'
               variant='outline'
-              onClick={() => labRef.current?.reduceMesh()}
-            >
-              Reduce 20%
-            </Button>
-            <Button
-              size='sm'
-              variant='outline'
               onClick={() => labRef.current?.recomputeNormals()}
             >
               Recompute normals

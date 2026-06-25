@@ -2,8 +2,7 @@
 
 Next.js workspace untuk:
 
-1. membandingkan hasil FaceDNeRF dan TripoSR pada dua subjek melalui satu
-   viewport aktif;
+1. membandingkan hasil FaceDNeRF dan TripoSR pada dua subjek secara side-by-side;
 2. mengunggah foto dan menjalankan inferensi TripoSR melalui Modal;
 3. menampilkan dan mengunduh hasil PLY.
 
@@ -58,25 +57,12 @@ public/comparison/
     └── triposr.ply
 ```
 
-Viewer memakai PLY web-optimized sekitar 15.000 vertex. File PLY asli tetap
-tersedia melalui tombol download di `public/comparison-original`.
-
-Regenerasi aset ringan setelah mengganti file asli:
-
-```powershell
-npm run optimize:meshes
-```
-
 Notes:
 
-- Jangan menaruh mesh mentah langsung di `public/comparison`; simpan di
-  `public/comparison-original`, lalu jalankan optimizer.
-- Optimizer memakai vertex clustering dan mempertahankan vertex color.
-- Versi ringan dipakai untuk viewer saja. Evaluasi metrik geometri harus memakai
-  file asli.
+- Viewer dan tombol download memakai PLY asli langsung dari `public/comparison`.
+- Vertex tidak direduksi, disederhanakan, atau dikompres sebelum ditampilkan.
 - Canvas memakai `frameloop="demand"`, DPR maksimal `1.5`, dan shadow dimatikan.
-- Halaman comparison hanya memuat satu metode pada satu waktu untuk mengurangi
-  parsing PLY dan penggunaan WebGL.
+- Halaman comparison memuat FaceDNeRF dan TripoSR bersamaan dalam dua viewport.
 - Preview input diperkecil ke lebar 900 px; foto sumber tetap berada di folder
   `../img`.
 
@@ -101,18 +87,17 @@ Fitur:
 - vertex selection: raycasting, brush radius, highlight vertex, selected count;
 - sculpting: grab, inflate, deflate, local smoothing;
 - geometry processing: global Laplacian smoothing, normal displacement,
-  simplification 20%, recompute normals;
+  recompute normals;
 - history: maksimal delapan snapshot untuk undo, reset ke mesh awal;
 - export: PLY binary dengan posisi, normal, warna, dan face hasil edit.
 
 Notes:
 
-- Gunakan mesh sekitar 15K vertex. Mesh mentah 200K vertex akan membuat sculpting
-  dan curvature calculation berat.
+- Mesh beresolusi tinggi dapat membuat sculpting dan curvature calculation lebih
+  berat pada perangkat lemah.
 - `Select` membiarkan orbit camera aktif. Tool sculpt mengunci orbit saat dipakai.
 - Curvature adalah visualisasi diskret berdasarkan perbedaan normal vertex dengan
   tetangganya, bukan estimasi kurvatur diferensial presisi tinggi.
-- `Reduce 20%` mengubah topologi. Undo dapat mengembalikan snapshot sebelumnya.
 - Hasil inferensi hanya tersimpan di library selama tab browser masih hidup.
 - Export dilakukan di browser dan tidak mengubah file preset di server.
 - Upload PLY lokal dibatasi 50 MB. File tidak diunggah ke server dan hanya
@@ -128,7 +113,7 @@ Rekomendasi:
 
 - deploy dari folder non-OneDrive agar `next build` tidak terkena lock `EPERM`;
 - gunakan Node.js 20 atau 22;
-- pastikan platform mendukung file statis PLY sekitar 0,8 MB per preset;
+- pastikan platform mendukung file statis PLY asli hingga sekitar 10 MB per preset;
 - aset comparison memakai cache satu tahun dengan `immutable`;
 - endpoint Modal harus tetap memakai HTTPS dan CORS;
 - jangan mengaktifkan image/mesh compression yang mengubah isi PLY pada CDN.

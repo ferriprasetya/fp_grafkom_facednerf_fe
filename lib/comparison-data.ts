@@ -4,8 +4,6 @@ export interface ComparisonSubject {
   sourceImage: string;
   facednerfModel: string;
   triposrModel: string;
-  facednerfOriginal: string;
-  triposrOriginal: string;
 }
 
 export const COMPARISON_SUBJECTS: ComparisonSubject[] = [
@@ -15,8 +13,6 @@ export const COMPARISON_SUBJECTS: ComparisonSubject[] = [
     sourceImage: "/comparison/subject-1/input.jpg",
     facednerfModel: "/comparison/subject-1/facednerf.ply",
     triposrModel: "/comparison/subject-1/triposr.ply",
-    facednerfOriginal: "/comparison-original/subject-1/facednerf.ply",
-    triposrOriginal: "/comparison-original/subject-1/triposr.ply",
   },
   {
     id: "subject-2",
@@ -24,7 +20,5 @@ export const COMPARISON_SUBJECTS: ComparisonSubject[] = [
     sourceImage: "/comparison/subject-2/input.jpg",
     facednerfModel: "/comparison/subject-2/facednerf.ply",
     triposrModel: "/comparison/subject-2/triposr.ply",
-    facednerfOriginal: "/comparison-original/subject-2/facednerf.ply",
-    triposrOriginal: "/comparison-original/subject-2/triposr.ply",
   },
 ];

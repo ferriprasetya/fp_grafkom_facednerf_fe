@@ -23,7 +23,7 @@ interface ModelPanelProps {
   title: string;
   subtitle: string;
   modelUrl: string;
-  originalUrl: string;
+  downloadUrl: string;
   wireframe: boolean;
   materialMode: MaterialMode;
 }
@@ -32,7 +32,7 @@ export function ModelPanel({
   title,
   subtitle,
   modelUrl,
-  originalUrl,
+  downloadUrl,
   wireframe,
   materialMode,
 }: ModelPanelProps) {
@@ -45,7 +45,7 @@ export function ModelPanel({
         </div>
         <a
           className='text-xs text-muted-foreground hover:text-foreground'
-          href={originalUrl}
+          href={downloadUrl}
           download
         >
           Download
