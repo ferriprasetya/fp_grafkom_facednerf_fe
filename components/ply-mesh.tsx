@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
-import { Vector3, type Object3D } from "three";
+import { DoubleSide, Vector3, type Object3D } from "three";
 
 export type MaterialMode = "vertex" | "skin";
 
@@ -58,6 +58,7 @@ export function PLYMesh({
           color='#e8b89a'
           specular='#ffffff'
           shininess={30}
+          side={DoubleSide}
           wireframe={wireframe}
         />
       ) : (
@@ -65,7 +66,11 @@ export function PLYMesh({
          * vertexColors must be true — FaceDNeRF bakes RGB directly into
          * vertex color attributes, NOT into texture maps.
          */
-        <meshStandardMaterial vertexColors wireframe={wireframe} />
+        <meshStandardMaterial
+          vertexColors
+          side={DoubleSide}
+          wireframe={wireframe}
+        />
       )}
     </mesh>
   );
