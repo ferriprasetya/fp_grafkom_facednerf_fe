@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, type RefObject } from "react";
+import { useEffect, useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
-import { Vector3, type Mesh, type Object3D } from "three";
-import { simplifyGeometry } from "@/lib/utils";
+import { Vector3, type Object3D } from "three";
 
 export type MaterialMode = "vertex" | "skin";
 
@@ -34,31 +33,22 @@ export function PLYMesh({
   const rawGeometry = useLoader(PLYLoader, url);
 
   const geometry = useMemo(() => {
-    rawGeometry.computeVertexNormals();
-    // Center so the bounding box midpoint sits at the world origin
-    rawGeometry.center();
-    rawGeometry.computeBoundingBox();
-    const size = rawGeometry.boundingBox!.getSize(new Vector3());
+    const preparedGeometry = rawGeometry.clone();
+    preparedGeometry.computeVertexNormals();
+    preparedGeometry.center();
+    preparedGeometry.computeBoundingBox();
+    const size = preparedGeometry.boundingBox!.getSize(new Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    // Normalize to ~2 world units so it always fits the default camera
-    if (maxDim > 0) rawGeometry.scale(2 / maxDim, 2 / maxDim, 2 / maxDim);
-
-    const TARGET_VERTEX = 15000;
-
-    // Debugging log for before vs after mesh simplification
-    const originalCount = rawGeometry.attributes?.position?.count || 0;
-    const simplifiedGeom = simplifyGeometry(rawGeometry, TARGET_VERTEX);
-    const simplifiedCount = simplifiedGeom.attributes?.position?.count || 0;
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[PLY Debug] Vertex ORiginal: ${originalCount} -> Simplification : ${simplifiedCount}`);
+    if (maxDim > 0) {
+      preparedGeometry.scale(2 / maxDim, 2 / maxDim, 2 / maxDim);
     }
-
-    return simplifiedGeom;
+    return preparedGeometry;
   }, [rawGeometry]);
 
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
   return (
-    <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+    <mesh ref={meshRef} geometry={geometry}>
       {materialMode === "skin" ? (
         /*
          * Classic Phong shading with a neutral skin base color.

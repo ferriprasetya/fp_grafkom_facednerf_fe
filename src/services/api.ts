@@ -1,21 +1,22 @@
 import type { JobStatusResponse, SubmitJobResponse } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_TRIPOSR_API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8000"
+).replace(/\/$/, "");
 
-/**
- * POST /reconstruct
- * Sends the face image file + prompt to FastAPI.
- * Returns a job_id for downstream polling.
- */
+/** Sends an image to the deployed TripoSR API. */
 export async function submitJob(
   imageFile: File,
-  prompt: string,
 ): Promise<SubmitJobResponse> {
   const form = new FormData();
   form.append("image", imageFile);
-  form.append("prompt", prompt);
+  form.append("foreground_ratio", "0.85");
+  form.append("mc_resolution", "256");
+  form.append("face_crop", "true");
 
-  const res = await fetch(`${API_BASE_URL}/generate`, {
+  const res = await fetch(`${API_BASE_URL}/api/generate`, {
     method: "POST",
     body: form,
   });
@@ -28,14 +29,13 @@ export async function submitJob(
   return res.json() as Promise<SubmitJobResponse>;
 }
 
-/**
- * GET /status/{job_id}
- * Fetches the current processing status of a job.
- */
+/** Fetches the current processing status of a TripoSR job. */
 export async function fetchJobStatus(
   jobId: string,
 ): Promise<JobStatusResponse> {
-  const res = await fetch(`${API_BASE_URL}/status/${jobId}`);
+  const res = await fetch(`${API_BASE_URL}/api/status/${jobId}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);

@@ -52,7 +52,6 @@ export function MousePointLight() {
       distance={12}
       decay={2}
       color='#ffffff'
-      castShadow
     />
   );
 }

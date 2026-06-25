@@ -45,14 +45,13 @@ export function SceneCanvas({
   return (
     <div
       className='absolute inset-0'
-      id='model-viewer-mount'
       data-model-url={modelUrl ?? ""}
     >
       <CanvasErrorBoundary>
         <Canvas
-          frameloop='always'
-          gl={{ antialias: true, alpha: true }}
-          shadows
+          dpr={[1, 1.5]}
+          frameloop='demand'
+          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         >
           <PerspectiveCamera
             makeDefault
@@ -71,7 +70,7 @@ export function SceneCanvas({
 
           {/* Boosted ambient so PBR meshStandardMaterial vertex colors read correctly */}
           <ambientLight intensity={1.2} />
-          <directionalLight position={[5, 8, 5]} intensity={0.8} castShadow />
+          <directionalLight position={[5, 8, 5]} intensity={0.8} />
 
           {/* Dynamic point light that follows the cursor */}
           <MousePointLight />

@@ -1,146 +1,138 @@
-# FaceDNeRF 3D Interactive Viewer
+# FaceDNeRF vs TripoSR Viewer
 
-Interactive web interface for visualizing and manipulating 3D face reconstructions based on text-guided Neural Radiance Fields (NeRF) in real-time. This frontend interacts with an external backend API to retrieve generated 3D assets (`.ply` or `.glb`) and renders them interactively using WebGL.
+Next.js workspace untuk:
 
----
+1. membandingkan hasil FaceDNeRF dan TripoSR pada dua subjek melalui satu
+   viewport aktif;
+2. mengunggah foto dan menjalankan inferensi TripoSR melalui Modal;
+3. menampilkan dan mengunduh hasil PLY.
 
-## 🚀 Getting Started
+## Menjalankan backend
 
-### 1. Prerequisites
+Dari root repository:
 
-Ensure you have the following installed:
-
-- **Node.js** (v18 or higher) or **Bun** (v1.0 or higher)
-
-### 2. Environment Setup
-
-Create a `.env` file in the root of the project using `.env.example` as a template:
-
-```bash
-cp .env.example .env
+```powershell
+$env:PYTHONUTF8="1"
+modal deploy modal_triposr.py
 ```
 
-Inside `.env`, configure the URL pointing to the external FaceDNeRF API:
+Endpoint deployment saat ini:
+
+```text
+https://endercreeper7590--triposr-backend-fastapi-app.modal.run
+```
+
+## Environment frontend
+
+Isi `.env`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_TRIPOSR_API_URL=https://endercreeper7590--triposr-backend-fastapi-app.modal.run
 ```
 
-### 3. Installation
+Jangan tambahkan `/api` pada URL. Frontend menambahkan `/api/generate` dan
+`/api/status/{job_id}` secara otomatis.
 
-Install the frontend package dependencies:
+## Menjalankan frontend
 
-```bash
-# Using npm
+```powershell
 npm install
-
-# Using Bun
-bun install
-```
-
-### 4. Running the Development Server
-
-Start the Next.js development server locally:
-
-```bash
-# Using npm
 npm run dev
-
-# Using Bun
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your web browser to view the application workspace.
+Buka `http://localhost:3000`.
 
----
+## Aset komparasi
 
-## 🔌 API Integration Contract
+Aset statis berada di:
 
-Since the backend processing pipeline resides in an external repository, the frontend communicates with it asynchronously using the following API endpoints:
+```text
+public/comparison/
+├── subject-1/
+│   ├── input.jpg
+│   ├── facednerf.ply
+│   └── triposr.ply
+└── subject-2/
+    ├── input.jpg
+    ├── facednerf.ply
+    └── triposr.ply
+```
 
-### 1. Submit Reconstruction Job
+Viewer memakai PLY web-optimized sekitar 15.000 vertex. File PLY asli tetap
+tersedia melalui tombol download di `public/comparison-original`.
 
-Uploads the input face image along with a text prompt to initiate the 3D generation.
+Regenerasi aset ringan setelah mengganti file asli:
 
-- **Endpoint:** `POST /generate`
-- **Content-Type:** `multipart/form-data`
-- **Request Parameters:**
-  - `image`: Binary file (the target face image)
-  - `prompt`: String (semantic textual description, e.g., "Smiling face", "Age 50")
-- **Expected Success Response (`200 OK`):**
-  ```json
-  {
-    "job_id": "c7a9f242-b918-4d56-a321-ee88274fda12"
-  }
-  ```
+```powershell
+npm run optimize:meshes
+```
 
-### 2. Poll Job Status
+Notes:
 
-Retrieves the real-time processing status of the requested job. The frontend polls this endpoint every 2 seconds (`POLL_INTERVAL_MS = 2000`) until it receives either a `COMPLETED` or `FAILED` status.
+- Jangan menaruh mesh mentah langsung di `public/comparison`; simpan di
+  `public/comparison-original`, lalu jalankan optimizer.
+- Optimizer memakai vertex clustering dan mempertahankan vertex color.
+- Versi ringan dipakai untuk viewer saja. Evaluasi metrik geometri harus memakai
+  file asli.
+- Canvas memakai `frameloop="demand"`, DPR maksimal `1.5`, dan shadow dimatikan.
+- Halaman comparison hanya memuat satu metode pada satu waktu untuk mengurangi
+  parsing PLY dan penggunaan WebGL.
+- Preview input diperkecil ke lebar 900 px; foto sumber tetap berada di folder
+  `../img`.
 
-- **Endpoint:** `GET /status/{job_id}`
-- **Expected Success Response (`200 OK`):**
-  ```json
-  {
-    "job_id": "c7a9f242-b918-4d56-a321-ee88274fda12",
-    "status": "QUEUED | PROCESSING | COMPLETED | FAILED",
-    "ply_url": "http://localhost:8000/outputs/result.ply", // Optional, present when COMPLETED
-    "glb_url": "http://localhost:8000/outputs/result.glb", // Optional, present when COMPLETED
-    "error": "Error details if processing failed", // Optional, present when FAILED
-    "progress": 55, // Optional, integer 0-100
-    "message": "Running NeRF inference..." // Optional progress details
-  }
-  ```
+## Catatan Windows/OneDrive
 
----
+`npx tsc --noEmit` berhasil. Pada workspace OneDrive ini, `next build` dapat
+gagal dengan `EPERM` ketika OneDrive mengunci rename file pada direktori
+`.next`. Pause sinkronisasi OneDrive atau salin project ke folder non-OneDrive
+sebelum menjalankan production build.
 
-## 🛠️ Architecture & WBS Implementation
+## Graphics Lab
 
-The application architecture maps directly to the project's **Work Breakdown Structure (WBS)** tasks, leveraging React Three Fiber (R3F) and modern React state patterns:
+Tab `Graphics Lab` menerima:
 
-### 1. Workspace Layout (`app/page.tsx` — Task 2)
+- empat mesh preset dari halaman comparison;
+- hasil TripoSR yang dibuat pada sesi browser aktif;
+- file PLY lokal melalui click-to-upload atau drag-and-drop.
 
-- Implements a responsive **Split-Pane Layout**.
-- **Left Panel (Control Panel):** Coordinates image uploads, text-based modification prompts, job status trackers, gallery navigation, and viewport parameters.
-- **Right Panel (Viewport Canvas):** Allocates full viewport space for WebGL rendering, centering focus on the 3D reconstructed face mesh.
+Fitur:
 
-### 2. Pipeline & Polling (`src/services/api.ts`, `src/hooks/useFaceReconstruction.ts` — Task 3)
+- NPR: vertex color, toon shading, normal, depth, curvature heatmap, wireframe;
+- vertex selection: raycasting, brush radius, highlight vertex, selected count;
+- sculpting: grab, inflate, deflate, local smoothing;
+- geometry processing: global Laplacian smoothing, normal displacement,
+  simplification 20%, recompute normals;
+- history: maksimal delapan snapshot untuk undo, reset ke mesh awal;
+- export: PLY binary dengan posisi, normal, warna, dan face hasil edit.
 
-- Handles the asynchronous generation lifecycle:
-  1. `POST /generate` uploads the source image file and text prompt, obtaining a unique `job_id`.
-  2. Polling loop queries `GET /status/{job_id}` at configured intervals (`POLL_INTERVAL_MS = 2000`).
-  3. Seamless transitions between status states (`QUEUED` ➔ `PROCESSING` ➔ `COMPLETED`/`FAILED`), dynamically reporting progress percentage and status messages.
+Notes:
 
-### 3. Dynamic Demo Gallery (`components/demo-gallery.tsx`, `src/hooks/useGallery.ts` — Task 4)
+- Gunakan mesh sekitar 15K vertex. Mesh mentah 200K vertex akan membuat sculpting
+  dan curvature calculation berat.
+- `Select` membiarkan orbit camera aktif. Tool sculpt mengunci orbit saat dipakai.
+- Curvature adalah visualisasi diskret berdasarkan perbedaan normal vertex dengan
+  tetangganya, bukan estimasi kurvatur diferensial presisi tinggi.
+- `Reduce 20%` mengubah topologi. Undo dapat mengembalikan snapshot sebelumnya.
+- Hasil inferensi hanya tersimpan di library selama tab browser masih hidup.
+- Export dilakukan di browser dan tidak mengubah file preset di server.
+- Upload PLY lokal dibatasi 50 MB. File tidak diunggah ke server dan hanya
+  diproses dalam browser pengguna.
 
-- Automatically captures completed jobs into a lightweight, local workspace gallery cache.
-- Allows the user to select and instantly re-render previously reconstructed face models for quick visual comparisons.
+## Deployment performance
 
-### 4. 3D Canvas & Error Boundary (`components/scene-canvas.tsx`, `components/canvas-error-boundary.tsx` — Task 5 & 10)
+Production deployment biasanya lebih lancar daripada `next dev` karena route,
+React, dan Three.js sudah dikompilasi. Kualitas render dan geometri tidak berubah
+selama file PLY serta pengaturan Canvas yang digunakan sama.
 
-- Configures `@react-three/fiber` `<Canvas>` with custom viewport defaults: `PerspectiveCamera` (FOV: 45, Position: [0, 0, 4]) and smooth camera orbital movement via `OrbitControls`.
-- Implements `<CanvasErrorBoundary>` wrapping WebGL components to gracefully intercept runtime context losses or mesh decode exceptions without breaking the host application page structure.
-- Dynamically routes files to separate loader/rendering nodes (`PLYMesh` or `GLBMesh`) depending on the format returned by the backend.
+Rekomendasi:
 
-### 5. Mesh & Material Optimization (`components/ply-mesh.tsx` — Task 6 & 8)
+- deploy dari folder non-OneDrive agar `next build` tidak terkena lock `EPERM`;
+- gunakan Node.js 20 atau 22;
+- pastikan platform mendukung file statis PLY sekitar 0,8 MB per preset;
+- aset comparison memakai cache satu tahun dengan `immutable`;
+- endpoint Modal harus tetap memakai HTTPS dan CORS;
+- jangan mengaktifkan image/mesh compression yang mengubah isi PLY pada CDN.
 
-- Loads 3D point cloud geometries asynchronously using Three.js `PLYLoader`.
-- **Normals Computation:** Invokes `geometry.computeVertexNormals()` immediately after parsing the file to resolve flat shading artifacts caused by raw NeRF Marching Cubes outputs.
-- **Scale Normalization:** Dynamically centers geometry coordinates and scales models to uniform sizes so they always fit perfectly within the default viewport.
-- **Material Modes:**
-  - _Vertex Colors (Original):_ Uses `MeshStandardMaterial` with `vertexColors={true}` to extract baked RGB color attributes directly from vertex metadata.
-  - _Skin Tone:_ Switches to `MeshPhongMaterial` with a simulated skin base color (`#e8b89a`) and soft specular highlights to inspect details independent of texture colors.
-
-### 6. Interactive Relighting (`components/mouse-point-light.tsx` — Task 7)
-
-- Houses a dynamic `pointLight` within the scene.
-- Hooks into `@react-three/fiber` `useFrame` to capture cursor movements in Normalized Device Coordinates (NDC) range `[-1, 1]`, dynamically repositioning the light source in 3D space to simulate live interactive relighting.
-
-### 7. Post-Processing Outline (`components/scene-canvas.tsx` — Task 8 & 9)
-
-- Integrates `@react-three/postprocessing` to compose real-time shader passes.
-- Provides a **Wireframe** toggle mapping directly to material configuration.
-- Provides an **Outline** shader effect (`<Outline>`) targeted at the active mesh bounding area, rendering crisp structural edges on demand without impacting base geometry pass performance.
-
----
-
+Upload PLY pengguna tidak dipengaruhi CDN karena dibaca langsung melalui
+`URL.createObjectURL()` di browser. Kecepatannya bergantung pada ukuran mesh dan
+perangkat pengguna, bukan koneksi internet.

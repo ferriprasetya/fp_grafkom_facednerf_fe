@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchJobStatus,
   POLL_INTERVAL_MS,
@@ -54,7 +54,7 @@ function deriveMessage(status: JobStatus, backendMessage?: string): string {
     case "QUEUED":
       return "Queued...";
     case "PROCESSING":
-      return "Running NeRF inference...";
+      return "Running TripoSR inference...";
     case "COMPLETED":
       return "Completed";
     case "FAILED":
@@ -74,7 +74,7 @@ export function useFaceReconstruction() {
   }
 
   const startReconstruction = useCallback(
-    async (imageFile: File, prompt: string) => {
+    async (imageFile: File) => {
       stopPolling();
       setState({
         ...INITIAL_STATE,
@@ -84,7 +84,7 @@ export function useFaceReconstruction() {
 
       let jobId: string;
       try {
-        const res = await submitJob(imageFile, prompt);
+        const res = await submitJob(imageFile);
         jobId = res.job_id;
       } catch (err) {
         setState((prev) => ({
@@ -148,6 +148,8 @@ export function useFaceReconstruction() {
     stopPolling();
     setState(INITIAL_STATE);
   }, []);
+
+  useEffect(() => stopPolling, []);
 
   return { state, startReconstruction, reset };
 }
