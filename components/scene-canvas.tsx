@@ -25,6 +25,8 @@ interface SceneCanvasProps {
   outline?: boolean;
   sideMode?: MeshSideMode;
   flipNormals?: boolean;
+  meshRotation?: [number, number, number];
+  lockTarget?: boolean;
   cameraSnapshot?: CameraSnapshot | null;
   onCameraChange?: (snapshot: CameraSnapshot) => void;
 }
@@ -72,6 +74,8 @@ export function SceneCanvas({
   outline = false,
   sideMode = "double",
   flipNormals = false,
+  meshRotation = [0, 0, 0],
+  lockTarget = false,
   cameraSnapshot,
   onCameraChange,
 }: SceneCanvasProps) {
@@ -84,6 +88,13 @@ export function SceneCanvas({
   const applyingCameraRef = useRef(false);
 
   const format = getModelFormat(modelUrl);
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls || !lockTarget) return;
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }, [lockTarget]);
 
   return (
     <div
@@ -129,10 +140,17 @@ export function SceneCanvas({
             dampingFactor={0.06}
             minDistance={0.5}
             maxDistance={20}
+            enablePan={!lockTarget}
             makeDefault
             onChange={() => {
               const controls = controlsRef.current;
-              if (!controls || !onCameraChange || applyingCameraRef.current) {
+              if (!controls) {
+                return;
+              }
+              if (lockTarget) {
+                controls.target.set(0, 0, 0);
+              }
+              if (!onCameraChange || applyingCameraRef.current) {
                 return;
               }
               onCameraChange({
@@ -161,6 +179,7 @@ export function SceneCanvas({
                 <GLBMesh
                   url={modelUrl}
                   wireframe={wireframe}
+                  rotation={meshRotation}
                   meshRef={meshRef}
                 />
               ) : (
@@ -170,6 +189,7 @@ export function SceneCanvas({
                   materialMode={materialMode}
                   sideMode={sideMode}
                   flipNormals={flipNormals}
+                  rotation={meshRotation}
                   meshRef={meshRef}
                 />
               )

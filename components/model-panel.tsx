@@ -33,6 +33,8 @@ interface ModelPanelProps {
   materialMode: MaterialMode;
   sideMode?: MeshSideMode;
   flipNormals?: boolean;
+  meshRotation?: [number, number, number];
+  lockTarget?: boolean;
   cameraSnapshot?: CameraSnapshot | null;
   onCameraChange?: (snapshot: CameraSnapshot) => void;
   inferenceMs?: number | null;
@@ -47,6 +49,8 @@ export function ModelPanel({
   materialMode,
   sideMode = "double",
   flipNormals = false,
+  meshRotation = [0, 0, 0],
+  lockTarget = false,
   cameraSnapshot,
   onCameraChange,
   inferenceMs,
@@ -76,6 +80,8 @@ export function ModelPanel({
           materialMode={materialMode}
           sideMode={sideMode}
           flipNormals={flipNormals}
+          meshRotation={meshRotation}
+          lockTarget={lockTarget}
           cameraSnapshot={cameraSnapshot}
           onCameraChange={onCameraChange}
         />

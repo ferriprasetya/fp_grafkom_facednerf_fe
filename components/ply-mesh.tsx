@@ -18,6 +18,7 @@ interface PLYMeshProps {
   materialMode?: MaterialMode;
   sideMode?: MeshSideMode;
   flipNormals?: boolean;
+  rotation?: [number, number, number];
   /** Forwarded ref so parent effects (e.g. Outline) can target this mesh. */
   meshRef?: RefObject<Object3D | null>;
 }
@@ -37,6 +38,7 @@ export function PLYMesh({
   materialMode = "vertex",
   sideMode = "double",
   flipNormals = false,
+  rotation = [0, 0, 0],
   meshRef,
 }: PLYMeshProps) {
   const rawGeometry = useLoader(PLYLoader, url);
@@ -59,7 +61,7 @@ export function PLYMesh({
   const side = sideModeToThreeSide(sideMode);
 
   return (
-    <mesh ref={meshRef} geometry={geometry}>
+    <mesh ref={meshRef} geometry={geometry} rotation={rotation}>
       {materialMode === "skin" ? (
         /*
          * Classic Phong shading with a neutral skin base color.

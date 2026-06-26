@@ -42,6 +42,9 @@ export function TripoSRWorkspace() {
   const [materialMode, setMaterialMode] =
     useState<MaterialMode>("vertex");
   const [sideMode, setSideMode] = useState<MeshSideMode>("double");
+  const [lockTarget, setLockTarget] = useState(true);
+  const [meshRotation, setMeshRotation] =
+    useState<[number, number, number]>([0, 0, 0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerRef = useRef<HTMLElement>(null);
   const { state, startReconstruction, reset } = useFaceReconstruction();
@@ -89,6 +92,14 @@ export function TripoSRWorkspace() {
     setImagePreview(null);
     reset();
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function rotateMesh(axis: 0 | 1 | 2, direction: -1 | 1) {
+    setMeshRotation((rotation) => {
+      const next: [number, number, number] = [...rotation];
+      next[axis] += direction * (Math.PI / 2);
+      return next;
+    });
   }
 
   return (
@@ -176,6 +187,10 @@ export function TripoSRWorkspace() {
             <span className='text-sm'>Flip normals</span>
             <Switch checked={flipNormals} onCheckedChange={setFlipNormals} />
           </div>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm'>Lock orbit target</span>
+            <Switch checked={lockTarget} onCheckedChange={setLockTarget} />
+          </div>
           <div className='grid grid-cols-2 gap-2'>
             <Button
               size='sm'
@@ -203,6 +218,34 @@ export function TripoSRWorkspace() {
                 {mode}
               </Button>
             ))}
+          </div>
+          <div className='grid grid-cols-3 gap-2'>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(0, -1)}>
+              X-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(1, -1)}>
+              Y-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(2, -1)}>
+              Z-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(0, 1)}>
+              X+90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(1, 1)}>
+              Y+90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(2, 1)}>
+              Z+90
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              className='col-span-3'
+              onClick={() => setMeshRotation([0, 0, 0])}
+            >
+              Reset orientation
+            </Button>
           </div>
         </section>
 
@@ -246,6 +289,8 @@ export function TripoSRWorkspace() {
               materialMode={materialMode}
               sideMode={sideMode}
               flipNormals={flipNormals}
+              meshRotation={meshRotation}
+              lockTarget={lockTarget}
             />
             <div className='absolute bottom-4 right-4 rounded-md bg-background/85 p-2 backdrop-blur-sm'>
               <MeshDownloadActions

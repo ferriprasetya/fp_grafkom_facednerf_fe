@@ -7,10 +7,16 @@ import { Box3, Vector3, type Mesh, type Object3D } from "three";
 interface GLBMeshProps {
   url: string;
   wireframe?: boolean;
+  rotation?: [number, number, number];
   meshRef?: RefObject<Object3D | null>;
 }
 
-export function GLBMesh({ url, wireframe = false, meshRef }: GLBMeshProps) {
+export function GLBMesh({
+  url,
+  wireframe = false,
+  rotation = [0, 0, 0],
+  meshRef,
+}: GLBMeshProps) {
   const { scene } = useGLTF(url);
 
   const clonedScene = useMemo(() => {
@@ -61,5 +67,5 @@ export function GLBMesh({ url, wireframe = false, meshRef }: GLBMeshProps) {
     });
   }, [clonedScene, wireframe]);
 
-  return <primitive object={clonedScene} ref={meshRef} />;
+  return <primitive object={clonedScene} ref={meshRef} rotation={rotation} />;
 }

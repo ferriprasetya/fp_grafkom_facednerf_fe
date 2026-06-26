@@ -17,13 +17,24 @@ export function ComparisonWorkspace() {
     useState<MaterialMode>("vertex");
   const [sideMode, setSideMode] = useState<MeshSideMode>("double");
   const [flipNormals, setFlipNormals] = useState(false);
-  const [cameraSync, setCameraSync] = useState(true);
+  const [cameraSync, setCameraSync] = useState(false);
+  const [lockTarget, setLockTarget] = useState(true);
+  const [meshRotation, setMeshRotation] =
+    useState<[number, number, number]>([0, 0, 0]);
   const [cameraSnapshot, setCameraSnapshot] =
     useState<CameraSnapshot | null>(null);
 
   const subject =
     COMPARISON_SUBJECTS.find((entry) => entry.id === subjectId) ??
     COMPARISON_SUBJECTS[0];
+
+  function rotateMesh(axis: 0 | 1 | 2, direction: -1 | 1) {
+    setMeshRotation((rotation) => {
+      const next: [number, number, number] = [...rotation];
+      next[axis] += direction * (Math.PI / 2);
+      return next;
+    });
+  }
 
   return (
     <div className='grid min-h-[calc(100vh-65px)] lg:grid-cols-[280px_1fr]'>
@@ -83,6 +94,14 @@ export function ComparisonWorkspace() {
             />
           </div>
           <div className='flex items-center justify-between'>
+            <span className='text-sm'>Lock orbit target</span>
+            <Switch
+              checked={lockTarget}
+              onCheckedChange={setLockTarget}
+              aria-label='Toggle locked orbit target'
+            />
+          </div>
+          <div className='flex items-center justify-between'>
             <span className='text-sm'>Flip normals</span>
             <Switch
               checked={flipNormals}
@@ -118,6 +137,34 @@ export function ComparisonWorkspace() {
               </Button>
             ))}
           </div>
+          <div className='grid grid-cols-3 gap-2'>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(0, -1)}>
+              X-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(1, -1)}>
+              Y-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(2, -1)}>
+              Z-90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(0, 1)}>
+              X+90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(1, 1)}>
+              Y+90
+            </Button>
+            <Button size='sm' variant='outline' onClick={() => rotateMesh(2, 1)}>
+              Z+90
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              className='col-span-3'
+              onClick={() => setMeshRotation([0, 0, 0])}
+            >
+              Reset orientation
+            </Button>
+          </div>
         </section>
       </aside>
 
@@ -132,6 +179,8 @@ export function ComparisonWorkspace() {
           materialMode={materialMode}
           sideMode={sideMode}
           flipNormals={flipNormals}
+          meshRotation={meshRotation}
+          lockTarget={lockTarget}
           cameraSnapshot={cameraSync ? cameraSnapshot : null}
           onCameraChange={cameraSync ? setCameraSnapshot : undefined}
         />
@@ -145,6 +194,8 @@ export function ComparisonWorkspace() {
           materialMode={materialMode}
           sideMode={sideMode}
           flipNormals={flipNormals}
+          meshRotation={meshRotation}
+          lockTarget={lockTarget}
           cameraSnapshot={cameraSync ? cameraSnapshot : null}
           onCameraChange={cameraSync ? setCameraSnapshot : undefined}
         />
