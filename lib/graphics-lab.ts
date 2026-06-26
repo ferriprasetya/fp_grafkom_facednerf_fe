@@ -20,6 +20,8 @@ export interface MeshStats {
   vertices: number;
   faces: number;
   selected: number;
+  degenerateFaces?: number;
+  winding?: "outward" | "inward" | "open/flat";
 }
 
 export class VertexSpatialHash {

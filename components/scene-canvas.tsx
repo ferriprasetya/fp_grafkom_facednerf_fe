@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Suspense, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import React, { Suspense, useEffect, useRef, type RefObject } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { EffectComposer, Outline } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
@@ -11,12 +11,22 @@ import { GLBMesh } from "@/components/glb-mesh";
 import { CanvasErrorBoundary } from "@/components/canvas-error-boundary";
 import { MousePointLight } from "@/components/mouse-point-light";
 import { getModelFormat } from "@/lib/model-url";
+import type { MeshSideMode } from "@/lib/mesh-analysis";
+
+export interface CameraSnapshot {
+  position: [number, number, number];
+  target: [number, number, number];
+}
 
 interface SceneCanvasProps {
   modelUrl: string | null;
   wireframe?: boolean;
   materialMode?: MaterialMode;
   outline?: boolean;
+  sideMode?: MeshSideMode;
+  flipNormals?: boolean;
+  cameraSnapshot?: CameraSnapshot | null;
+  onCameraChange?: (snapshot: CameraSnapshot) => void;
 }
 
 function MeshLoadingFallback() {
@@ -28,17 +38,50 @@ function MeshLoadingFallback() {
   );
 }
 
+function CameraSync({
+  snapshot,
+  controlsRef,
+  applyingRef,
+}: {
+  snapshot: CameraSnapshot | null | undefined;
+  controlsRef: RefObject<any>;
+  applyingRef: RefObject<boolean>;
+}) {
+  const { camera, invalidate } = useThree();
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!snapshot || !controls) return;
+    applyingRef.current = true;
+    camera.position.set(...snapshot.position);
+    controls.target.set(...snapshot.target);
+    controls.update();
+    invalidate();
+    queueMicrotask(() => {
+      applyingRef.current = false;
+    });
+  }, [applyingRef, camera, controlsRef, invalidate, snapshot]);
+
+  return null;
+}
+
 export function SceneCanvas({
   modelUrl,
   wireframe = false,
   materialMode = "vertex",
   outline = false,
+  sideMode = "double",
+  flipNormals = false,
+  cameraSnapshot,
+  onCameraChange,
 }: SceneCanvasProps) {
   /*
    * meshRef lets <Outline> select exactly this mesh for edge detection
    * without relying on layers or scene-wide selection lists.
    */
   const meshRef = useRef<Object3D>(null);
+  const controlsRef = useRef<any>(null);
+  const applyingCameraRef = useRef(false);
 
   const format = getModelFormat(modelUrl);
 
@@ -51,7 +94,12 @@ export function SceneCanvas({
         <Canvas
           dpr={[1, 1.5]}
           frameloop='demand'
-          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance",
+            preserveDrawingBuffer: true,
+          }}
         >
           <PerspectiveCamera
             makeDefault
@@ -76,11 +124,35 @@ export function SceneCanvas({
           <MousePointLight />
 
           <OrbitControls
+            ref={controlsRef}
             enableDamping
             dampingFactor={0.06}
             minDistance={0.5}
             maxDistance={20}
             makeDefault
+            onChange={() => {
+              const controls = controlsRef.current;
+              if (!controls || !onCameraChange || applyingCameraRef.current) {
+                return;
+              }
+              onCameraChange({
+                position: [
+                  controls.object.position.x,
+                  controls.object.position.y,
+                  controls.object.position.z,
+                ],
+                target: [
+                  controls.target.x,
+                  controls.target.y,
+                  controls.target.z,
+                ],
+              });
+            }}
+          />
+          <CameraSync
+            snapshot={cameraSnapshot}
+            controlsRef={controlsRef}
+            applyingRef={applyingCameraRef}
           />
 
           <Suspense fallback={<MeshLoadingFallback />}>
@@ -96,6 +168,8 @@ export function SceneCanvas({
                   url={modelUrl}
                   wireframe={wireframe}
                   materialMode={materialMode}
+                  sideMode={sideMode}
+                  flipNormals={flipNormals}
                   meshRef={meshRef}
                 />
               )

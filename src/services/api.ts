@@ -1,4 +1,8 @@
-import type { JobStatusResponse, SubmitJobResponse } from "./types";
+import type {
+  JobStatusResponse,
+  SubmitJobOptions,
+  SubmitJobResponse,
+} from "./types";
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_TRIPOSR_API_URL ??
@@ -9,12 +13,13 @@ const API_BASE_URL = (
 /** Sends an image to the deployed TripoSR API. */
 export async function submitJob(
   imageFile: File,
+  options: SubmitJobOptions,
 ): Promise<SubmitJobResponse> {
   const form = new FormData();
   form.append("image", imageFile);
-  form.append("foreground_ratio", "0.85");
-  form.append("mc_resolution", "256");
-  form.append("face_crop", "true");
+  form.append("foreground_ratio", String(options.foregroundRatio ?? 0.85));
+  form.append("mc_resolution", String(options.mcResolution ?? 256));
+  form.append("face_crop", String(options.faceCrop));
 
   const res = await fetch(`${API_BASE_URL}/api/generate`, {
     method: "POST",

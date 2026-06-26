@@ -3,6 +3,9 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Upload, X } from "lucide-react";
+import { MeshDownloadActions } from "@/components/mesh-download-actions";
+import { MeshStatsPanel } from "@/components/mesh-stats-panel";
+import type { MaterialMode } from "@/components/ply-mesh";
 import { Button } from "@/components/ui/button";
 import {
   Progress,
@@ -10,8 +13,10 @@ import {
   ProgressValue,
 } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
-import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
+import { Switch } from "@/components/ui/switch";
+import type { MeshSideMode } from "@/lib/mesh-analysis";
 import { useMeshLibrary } from "@/src/context/mesh-library";
+import { useFaceReconstruction } from "@/src/hooks/useFaceReconstruction";
 
 const SceneCanvas = dynamic(
   () =>
@@ -31,7 +36,14 @@ const SceneCanvas = dynamic(
 export function TripoSRWorkspace() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [faceCrop, setFaceCrop] = useState(false);
+  const [wireframe, setWireframe] = useState(false);
+  const [flipNormals, setFlipNormals] = useState(false);
+  const [materialMode, setMaterialMode] =
+    useState<MaterialMode>("vertex");
+  const [sideMode, setSideMode] = useState<MeshSideMode>("double");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewerRef = useRef<HTMLElement>(null);
   const { state, startReconstruction, reset } = useFaceReconstruction();
   const { addEntry } = useMeshLibrary();
   const addedJobRef = useRef<string | null>(null);
@@ -80,12 +92,12 @@ export function TripoSRWorkspace() {
   }
 
   return (
-    <div className='grid min-h-[calc(100vh-65px)] lg:grid-cols-[320px_1fr]'>
-      <aside className='flex flex-col gap-6 border-b p-5 lg:border-r lg:border-b-0'>
+    <div className='grid min-h-[calc(100vh-65px)] lg:grid-cols-[340px_1fr]'>
+      <aside className='flex max-h-[calc(100vh-65px)] flex-col gap-6 overflow-y-auto border-b p-5 lg:border-r lg:border-b-0'>
         <div>
           <h2 className='text-sm font-medium'>TripoSR inference</h2>
           <p className='text-xs text-muted-foreground'>
-            Modal · face crop · 256 mesh resolution
+            Modal · object/face mode · 256 mesh resolution
           </p>
         </div>
 
@@ -126,6 +138,74 @@ export function TripoSRWorkspace() {
           onChange={selectImage}
         />
 
+        <section className='flex flex-col gap-3'>
+          <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>
+            Inference mode
+          </p>
+          <div className='grid grid-cols-2 gap-2'>
+            <Button
+              size='sm'
+              variant={!faceCrop ? "default" : "outline"}
+              onClick={() => setFaceCrop(false)}
+            >
+              Object
+            </Button>
+            <Button
+              size='sm'
+              variant={faceCrop ? "default" : "outline"}
+              onClick={() => setFaceCrop(true)}
+            >
+              Face crop
+            </Button>
+          </div>
+          <p className='text-xs text-muted-foreground'>
+            Object skips MediaPipe face detection. Face crop detects landmarks,
+            then crops before TripoSR.
+          </p>
+        </section>
+
+        <section className='flex flex-col gap-3'>
+          <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>
+            Viewer debug
+          </p>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm'>Wireframe</span>
+            <Switch checked={wireframe} onCheckedChange={setWireframe} />
+          </div>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm'>Flip normals</span>
+            <Switch checked={flipNormals} onCheckedChange={setFlipNormals} />
+          </div>
+          <div className='grid grid-cols-2 gap-2'>
+            <Button
+              size='sm'
+              variant={materialMode === "vertex" ? "default" : "outline"}
+              onClick={() => setMaterialMode("vertex")}
+            >
+              Vertex
+            </Button>
+            <Button
+              size='sm'
+              variant={materialMode === "skin" ? "default" : "outline"}
+              onClick={() => setMaterialMode("skin")}
+            >
+              Geometry
+            </Button>
+          </div>
+          <div className='grid grid-cols-3 gap-2'>
+            {(["double", "front", "back"] as const).map((mode) => (
+              <Button
+                key={mode}
+                size='sm'
+                variant={sideMode === mode ? "default" : "outline"}
+                onClick={() => setSideMode(mode)}
+              >
+                {mode}
+              </Button>
+            ))}
+          </div>
+        </section>
+
         {state.phase !== "idle" && state.phase !== "error" && (
           <Progress value={state.progress}>
             <ProgressLabel>{state.message}</ProgressLabel>
@@ -143,24 +223,61 @@ export function TripoSRWorkspace() {
         <Button
           className='mt-auto'
           disabled={!imageFile || isProcessing}
-          onClick={() => imageFile && startReconstruction(imageFile)}
+          onClick={() =>
+            imageFile &&
+            startReconstruction(imageFile, {
+              faceCrop,
+              foregroundRatio: 0.85,
+              mcResolution: 256,
+            })
+          }
         >
           {isProcessing ? <Spinner /> : <Upload />}
           Generate PLY
         </Button>
       </aside>
 
-      <section className='relative min-h-[520px] bg-muted/20'>
+      <section ref={viewerRef} className='relative min-h-[520px] bg-muted/20'>
         {state.modelUrl ? (
           <>
-            <SceneCanvas modelUrl={state.modelUrl} />
-            <a
-              href={state.modelUrl}
-              download
-              className='absolute bottom-4 right-4 rounded-md bg-background/80 px-3 py-2 text-xs backdrop-blur-sm hover:bg-background'
-            >
-              Download PLY
-            </a>
+            <SceneCanvas
+              modelUrl={state.modelUrl}
+              wireframe={wireframe}
+              materialMode={materialMode}
+              sideMode={sideMode}
+              flipNormals={flipNormals}
+            />
+            <div className='absolute bottom-4 right-4 rounded-md bg-background/85 p-2 backdrop-blur-sm'>
+              <MeshDownloadActions
+                modelUrl={state.modelUrl}
+                filenameStem={`triposr-${state.jobId ?? "mesh"}`}
+                getCanvas={() =>
+                  viewerRef.current?.querySelector("canvas") ?? null
+                }
+              />
+            </div>
+            <div className='absolute left-4 top-4 w-72 rounded-lg bg-background/85 p-3 backdrop-blur-sm'>
+              <MeshStatsPanel
+                modelUrl={state.modelUrl}
+                inferenceMs={state.inferenceMs}
+              />
+            </div>
+            {state.preprocessUrls && (
+              <div className='absolute bottom-4 left-4 grid max-w-[560px] grid-cols-3 gap-2 rounded-lg bg-background/85 p-2 backdrop-blur-sm'>
+                <PreviewImage
+                  label={state.faceCrop ? "Crop" : "Object input"}
+                  src={state.preprocessUrls.cropped}
+                />
+                <PreviewImage
+                  label='Foreground'
+                  src={state.preprocessUrls.foreground}
+                />
+                <PreviewImage
+                  label='Model input'
+                  src={state.preprocessUrls.model_input}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className='flex h-full min-h-[520px] items-center justify-center text-sm text-muted-foreground'>
@@ -169,5 +286,18 @@ export function TripoSRWorkspace() {
         )}
       </section>
     </div>
+  );
+}
+
+function PreviewImage({ label, src }: { label: string; src?: string }) {
+  if (!src) return null;
+  return (
+    <figure className='w-40 overflow-hidden rounded-md bg-muted'>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={label} className='aspect-square w-full object-cover' />
+      <figcaption className='px-2 py-1 text-xs text-muted-foreground'>
+        {label}
+      </figcaption>
+    </figure>
   );
 }

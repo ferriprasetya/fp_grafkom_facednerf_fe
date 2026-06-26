@@ -6,7 +6,11 @@ import {
   POLL_INTERVAL_MS,
   submitJob,
 } from "@/src/services/api";
-import type { JobStatus } from "@/src/services/types";
+import type {
+  JobStatus,
+  PreprocessUrls,
+  SubmitJobOptions,
+} from "@/src/services/types";
 
 export type PipelinePhase =
   | "idle"
@@ -22,6 +26,9 @@ export interface PipelineState {
   message: string;
   modelUrl: string | null;
   error: string | null;
+  preprocessUrls: PreprocessUrls | null;
+  inferenceMs: number | null;
+  faceCrop: boolean | null;
 }
 
 const INITIAL_STATE: PipelineState = {
@@ -31,6 +38,9 @@ const INITIAL_STATE: PipelineState = {
   message: "",
   modelUrl: null,
   error: null,
+  preprocessUrls: null,
+  inferenceMs: null,
+  faceCrop: null,
 };
 
 /** Maps backend JobStatus to a human-readable progress hint. */
@@ -62,6 +72,22 @@ function deriveMessage(status: JobStatus, backendMessage?: string): string {
   }
 }
 
+function friendlyError(error: string): string {
+  if (/no face detected/i.test(error)) {
+    return "No face detected. Switch to Object Mode / Face Crop off, then run again.";
+  }
+  if (/foreground_ratio/i.test(error)) {
+    return "Invalid foreground ratio. Use a value between 0.5 and 1.0.";
+  }
+  if (/mc_resolution/i.test(error)) {
+    return "Invalid mesh resolution. Use 128–512.";
+  }
+  if (/timeout/i.test(error)) {
+    return "Inference timeout. Try a smaller image or lower mesh resolution.";
+  }
+  return error;
+}
+
 export function useFaceReconstruction() {
   const [state, setState] = useState<PipelineState>(INITIAL_STATE);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -74,7 +100,7 @@ export function useFaceReconstruction() {
   }
 
   const startReconstruction = useCallback(
-    async (imageFile: File) => {
+    async (imageFile: File, options: SubmitJobOptions) => {
       stopPolling();
       setState({
         ...INITIAL_STATE,
@@ -84,13 +110,15 @@ export function useFaceReconstruction() {
 
       let jobId: string;
       try {
-        const res = await submitJob(imageFile);
+        const res = await submitJob(imageFile, options);
         jobId = res.job_id;
       } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Submission failed";
         setState((prev) => ({
           ...prev,
           phase: "error",
-          error: err instanceof Error ? err.message : "Submission failed",
+          error: friendlyError(message),
         }));
         return;
       }
@@ -120,23 +148,29 @@ export function useFaceReconstruction() {
               ...prev,
               phase: "completed",
               modelUrl: status.glb_url ?? status.ply_url ?? null,
+              preprocessUrls: status.preprocess_urls ?? null,
+              inferenceMs: status.inference_ms ?? null,
+              faceCrop: status.face_crop ?? options.faceCrop,
               progress: 100,
-              message: "Completed",
+              message: status.inference_ms
+                ? `Completed in ${(status.inference_ms / 1000).toFixed(2)}s`
+                : "Completed",
             }));
           } else if (status.status === "FAILED") {
             stopPolling();
             setState((prev) => ({
               ...prev,
               phase: "error",
-              error: status.error ?? "Job failed on the server",
+              error: friendlyError(status.error ?? "Job failed on the server"),
             }));
           }
         } catch (err) {
+          const message = err instanceof Error ? err.message : "Polling failed";
           stopPolling();
           setState((prev) => ({
             ...prev,
             phase: "error",
-            error: err instanceof Error ? err.message : "Polling failed",
+            error: friendlyError(message),
           }));
         }
       }, POLL_INTERVAL_MS);

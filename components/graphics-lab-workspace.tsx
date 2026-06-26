@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  Camera,
   Download,
   FileUp,
   RotateCcw,
@@ -19,6 +20,7 @@ import {
   type RenderMode,
   type SculptTool,
 } from "@/lib/graphics-lab";
+import type { MeshSideMode } from "@/lib/mesh-analysis";
 import { useMeshLibrary } from "@/src/context/mesh-library";
 
 const RENDER_MODES: { value: RenderMode; label: string }[] = [
@@ -46,6 +48,7 @@ export function GraphicsLabWorkspace() {
   const [brushStrength, setBrushStrength] = useState(0.45);
   const [wireframe, setWireframe] = useState(false);
   const [outline, setOutline] = useState(false);
+  const [sideMode, setSideMode] = useState<MeshSideMode>("double");
   const [stats, setStats] = useState<MeshStats>({
     vertices: 0,
     faces: 0,
@@ -54,6 +57,7 @@ export function GraphicsLabWorkspace() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const labRef = useRef<GraphicsLabHandle>(null);
+  const viewerRef = useRef<HTMLElement>(null);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedId) ?? entries[0],
@@ -83,6 +87,15 @@ export function GraphicsLabWorkspace() {
   function uploadMesh(event: React.ChangeEvent<HTMLInputElement>) {
     addUploadedMesh(event.target.files?.[0]);
     event.target.value = "";
+  }
+
+  function downloadScreenshot() {
+    const canvas = viewerRef.current?.querySelector("canvas");
+    if (!canvas) return;
+    const anchor = document.createElement("a");
+    anchor.href = canvas.toDataURL("image/png");
+    anchor.download = "graphics-lab-screenshot.png";
+    anchor.click();
   }
 
   return (
@@ -170,6 +183,18 @@ export function GraphicsLabWorkspace() {
               Outline
             </Button>
           </div>
+          <div className='grid grid-cols-3 gap-1.5'>
+            {(["double", "front", "back"] as const).map((mode) => (
+              <Button
+                key={mode}
+                size='sm'
+                variant={sideMode === mode ? "default" : "outline"}
+                onClick={() => setSideMode(mode)}
+              >
+                {mode}
+              </Button>
+            ))}
+          </div>
         </section>
 
         <section className='flex flex-col gap-3'>
@@ -251,6 +276,13 @@ export function GraphicsLabWorkspace() {
             >
               Recompute normals
             </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => labRef.current?.flipNormals()}
+            >
+              Flip normals
+            </Button>
           </div>
         </section>
 
@@ -267,9 +299,19 @@ export function GraphicsLabWorkspace() {
             <p className='font-medium'>{stats.selected.toLocaleString()}</p>
             <p className='text-muted-foreground'>Selected</p>
           </div>
+          <div>
+            <p className='font-medium'>{stats.winding ?? "—"}</p>
+            <p className='text-muted-foreground'>Winding</p>
+          </div>
+          <div>
+            <p className='font-medium'>
+              {(stats.degenerateFaces ?? 0).toLocaleString()}
+            </p>
+            <p className='text-muted-foreground'>Degenerate</p>
+          </div>
         </section>
 
-        <div className='grid grid-cols-3 gap-1.5'>
+        <div className='grid grid-cols-2 gap-1.5'>
           <Button
             size='sm'
             variant='outline'
@@ -290,6 +332,10 @@ export function GraphicsLabWorkspace() {
             <Download />
             Export
           </Button>
+          <Button size='sm' variant='outline' onClick={downloadScreenshot}>
+            <Camera />
+            PNG
+          </Button>
         </div>
 
         <p className='text-xs leading-relaxed text-muted-foreground'>
@@ -298,7 +344,7 @@ export function GraphicsLabWorkspace() {
         </p>
       </aside>
 
-      <section className='relative min-h-[640px] bg-muted/20'>
+      <section ref={viewerRef} className='relative min-h-[640px] bg-muted/20'>
         {selectedEntry ? (
           <GraphicsLabCanvas
             ref={labRef}
@@ -310,6 +356,7 @@ export function GraphicsLabWorkspace() {
             brushStrength={brushStrength}
             wireframe={wireframe}
             outline={outline}
+            sideMode={sideMode}
             onStatsChange={setStats}
           />
         ) : (

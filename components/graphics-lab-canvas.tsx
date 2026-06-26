@@ -34,6 +34,12 @@ import {
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
 import { CanvasErrorBoundary } from "@/components/canvas-error-boundary";
 import {
+  analyzeGeometry,
+  reverseGeometryWinding,
+  sideModeToThreeSide,
+  type MeshSideMode,
+} from "@/lib/mesh-analysis";
+import {
   buildAdjacency,
   curvatureColors,
   smoothVertices,
@@ -49,6 +55,7 @@ export interface GraphicsLabHandle {
   smoothGlobal: () => void;
   addNoise: () => void;
   recomputeNormals: () => void;
+  flipNormals: () => void;
   exportPly: () => void;
 }
 
@@ -60,6 +67,7 @@ interface GraphicsLabCanvasProps {
   brushStrength: number;
   wireframe: boolean;
   outline: boolean;
+  sideMode: MeshSideMode;
   onStatsChange: (stats: MeshStats) => void;
 }
 
@@ -89,6 +97,7 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
       brushStrength,
       wireframe,
       outline,
+      sideMode,
       onStatsChange,
     },
     forwardedRef,
@@ -115,19 +124,24 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
     const [revision, setRevision] = useState(0);
     const { invalidate } = useThree();
 
+    const emitStats = (selected = selectedRef.current.length) => {
+      const analysis = analyzeGeometry(geometryRef.current);
+      onStatsChange({
+        vertices: analysis.vertices,
+        faces: analysis.faces,
+        selected,
+        degenerateFaces: analysis.degenerateFaces,
+        winding: analysis.winding,
+      });
+    };
+
     const rebuildCaches = () => {
       const geometry = geometryRef.current;
       spatialHashRef.current = new VertexSpatialHash(
         geometry.getAttribute("position"),
       );
       adjacencyRef.current = buildAdjacency(geometry);
-      onStatsChange({
-        vertices: geometry.getAttribute("position").count,
-        faces: geometry.getIndex()
-          ? geometry.getIndex()!.count / 3
-          : geometry.getAttribute("position").count / 3,
-        selected: selectedRef.current.length,
-      });
+      emitStats();
     };
 
     const replaceGeometry = (geometry: BufferGeometry) => {
@@ -245,6 +259,11 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
           geometryRef.current.getAttribute("normal").needsUpdate = true;
           invalidate();
         },
+        flipNormals() {
+          pushHistory();
+          reverseGeometryWinding(geometryRef.current);
+          finishGeometryUpdate();
+        },
         exportPly() {
           void import("three/examples/jsm/exporters/PLYExporter.js").then(
             ({ PLYExporter }) => {
@@ -304,13 +323,7 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
       }
       if (selectedCountRef.current !== selected.length) {
         selectedCountRef.current = selected.length;
-        onStatsChange({
-          vertices: geometryRef.current.getAttribute("position").count,
-          faces: geometryRef.current.getIndex()
-            ? geometryRef.current.getIndex()!.count / 3
-            : geometryRef.current.getAttribute("position").count / 3,
-          selected: selected.length,
-        });
+        emitStats(selected.length);
       }
       return { point, normal, selected };
     };
@@ -375,20 +388,30 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
     };
 
     const vertexColors = geometryRef.current.hasAttribute("color");
+    const side = sideModeToThreeSide(sideMode);
     const material =
       renderMode === "toon" ? (
-        <meshToonMaterial vertexColors={vertexColors} wireframe={wireframe} />
+        <meshToonMaterial
+          vertexColors={vertexColors}
+          wireframe={wireframe}
+          side={side}
+        />
       ) : renderMode === "normal" ? (
-        <meshNormalMaterial wireframe={wireframe} />
+        <meshNormalMaterial wireframe={wireframe} side={side} />
       ) : renderMode === "depth" ? (
-        <meshDepthMaterial wireframe={wireframe} />
+        <meshDepthMaterial wireframe={wireframe} side={side} />
       ) : renderMode === "curvature" ? (
-        <meshBasicMaterial vertexColors wireframe={wireframe} />
+        <meshBasicMaterial
+          vertexColors
+          wireframe={wireframe}
+          side={side}
+        />
       ) : (
         <meshStandardMaterial
           vertexColors={vertexColors}
           wireframe={wireframe}
           roughness={0.75}
+          side={side}
         />
       );
 
@@ -431,13 +454,7 @@ const EditableMesh = forwardRef<GraphicsLabHandle, EditableMeshProps>(
               selectedRef.current = [];
               selectedCountRef.current = 0;
               selectionGeometryRef.current?.deleteAttribute("position");
-              onStatsChange({
-                vertices: geometryRef.current.getAttribute("position").count,
-                faces: geometryRef.current.getIndex()
-                  ? geometryRef.current.getIndex()!.count / 3
-                  : geometryRef.current.getAttribute("position").count / 3,
-                selected: 0,
-              });
+              emitStats(0);
               invalidate();
             }
           }}
@@ -488,6 +505,7 @@ export const GraphicsLabCanvas = forwardRef<
             antialias: true,
             alpha: true,
             powerPreference: "high-performance",
+            preserveDrawingBuffer: true,
           }}
         >
           <PerspectiveCamera makeDefault fov={45} position={[0, 0, 4]} />

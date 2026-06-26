@@ -3,7 +3,12 @@
 import { useEffect, useMemo, type RefObject } from "react";
 import { useLoader } from "@react-three/fiber";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
-import { DoubleSide, Vector3, type Object3D } from "three";
+import { Vector3, type Object3D } from "three";
+import {
+  reverseGeometryWinding,
+  sideModeToThreeSide,
+  type MeshSideMode,
+} from "@/lib/mesh-analysis";
 
 export type MaterialMode = "vertex" | "skin";
 
@@ -11,6 +16,8 @@ interface PLYMeshProps {
   url: string;
   wireframe?: boolean;
   materialMode?: MaterialMode;
+  sideMode?: MeshSideMode;
+  flipNormals?: boolean;
   /** Forwarded ref so parent effects (e.g. Outline) can target this mesh. */
   meshRef?: RefObject<Object3D | null>;
 }
@@ -28,12 +35,15 @@ export function PLYMesh({
   url,
   wireframe = false,
   materialMode = "vertex",
+  sideMode = "double",
+  flipNormals = false,
   meshRef,
 }: PLYMeshProps) {
   const rawGeometry = useLoader(PLYLoader, url);
 
   const geometry = useMemo(() => {
     const preparedGeometry = rawGeometry.clone();
+    if (flipNormals) reverseGeometryWinding(preparedGeometry);
     preparedGeometry.computeVertexNormals();
     preparedGeometry.center();
     preparedGeometry.computeBoundingBox();
@@ -43,9 +53,10 @@ export function PLYMesh({
       preparedGeometry.scale(2 / maxDim, 2 / maxDim, 2 / maxDim);
     }
     return preparedGeometry;
-  }, [rawGeometry]);
+  }, [flipNormals, rawGeometry]);
 
   useEffect(() => () => geometry.dispose(), [geometry]);
+  const side = sideModeToThreeSide(sideMode);
 
   return (
     <mesh ref={meshRef} geometry={geometry}>
@@ -58,7 +69,7 @@ export function PLYMesh({
           color='#e8b89a'
           specular='#ffffff'
           shininess={30}
-          side={DoubleSide}
+          side={side}
           wireframe={wireframe}
         />
       ) : (
@@ -68,7 +79,7 @@ export function PLYMesh({
          */
         <meshStandardMaterial
           vertexColors
-          side={DoubleSide}
+          side={side}
           wireframe={wireframe}
         />
       )}

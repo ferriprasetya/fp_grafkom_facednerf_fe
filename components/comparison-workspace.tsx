@@ -6,13 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ModelPanel } from "@/components/model-panel";
 import type { MaterialMode } from "@/components/ply-mesh";
+import type { CameraSnapshot } from "@/components/scene-canvas";
 import { COMPARISON_SUBJECTS } from "@/lib/comparison-data";
+import type { MeshSideMode } from "@/lib/mesh-analysis";
 
 export function ComparisonWorkspace() {
   const [subjectId, setSubjectId] = useState(COMPARISON_SUBJECTS[0].id);
   const [wireframe, setWireframe] = useState(false);
   const [materialMode, setMaterialMode] =
     useState<MaterialMode>("vertex");
+  const [sideMode, setSideMode] = useState<MeshSideMode>("double");
+  const [flipNormals, setFlipNormals] = useState(false);
+  const [cameraSync, setCameraSync] = useState(true);
+  const [cameraSnapshot, setCameraSnapshot] =
+    useState<CameraSnapshot | null>(null);
 
   const subject =
     COMPARISON_SUBJECTS.find((entry) => entry.id === subjectId) ??
@@ -67,6 +74,22 @@ export function ComparisonWorkspace() {
               aria-label='Toggle wireframe'
             />
           </div>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm'>Camera sync</span>
+            <Switch
+              checked={cameraSync}
+              onCheckedChange={setCameraSync}
+              aria-label='Toggle camera sync'
+            />
+          </div>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm'>Flip normals</span>
+            <Switch
+              checked={flipNormals}
+              onCheckedChange={setFlipNormals}
+              aria-label='Toggle flipped normals'
+            />
+          </div>
           <div className='grid grid-cols-2 gap-2'>
             <Button
               variant={materialMode === "vertex" ? "default" : "outline"}
@@ -83,6 +106,18 @@ export function ComparisonWorkspace() {
               Geometry
             </Button>
           </div>
+          <div className='grid grid-cols-3 gap-2'>
+            {(["double", "front", "back"] as const).map((mode) => (
+              <Button
+                key={mode}
+                variant={sideMode === mode ? "default" : "outline"}
+                size='sm'
+                onClick={() => setSideMode(mode)}
+              >
+                {mode}
+              </Button>
+            ))}
+          </div>
         </section>
       </aside>
 
@@ -95,6 +130,10 @@ export function ComparisonWorkspace() {
           downloadUrl={subject.facednerfModel}
           wireframe={wireframe}
           materialMode={materialMode}
+          sideMode={sideMode}
+          flipNormals={flipNormals}
+          cameraSnapshot={cameraSync ? cameraSnapshot : null}
+          onCameraChange={cameraSync ? setCameraSnapshot : undefined}
         />
         <ModelPanel
           key={`${subject.id}-triposr`}
@@ -104,6 +143,10 @@ export function ComparisonWorkspace() {
           downloadUrl={subject.triposrModel}
           wireframe={wireframe}
           materialMode={materialMode}
+          sideMode={sideMode}
+          flipNormals={flipNormals}
+          cameraSnapshot={cameraSync ? cameraSnapshot : null}
+          onCameraChange={cameraSync ? setCameraSnapshot : undefined}
         />
       </div>
     </div>
